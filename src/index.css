@@ -1,0 +1,33 @@
+/* 全局样式，可根据需要自定义 */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+  Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+  "Noto Color Emoji", "Microsoft YaHei UI", "Microsoft YaHei";
+  background-color: var(--antd-bg); /* antd v5 动态变量 */
+  color: var(--antd-text-color);
+}
+
+.ant-layout {
+  min-height: 100vh;
+}
+
+/* 响应式细节可自行增强 */
+@media (max-width: 768px) {
+  .responsive-padding {
+    padding: 8px;
+  }
+  .responsive-margin {
+    margin: 8px;
+  }
+}
+@media (min-width: 769px) {
+  .responsive-padding {
+    padding: 16px;
+  }
+  .responsive-margin {
+    margin: 16px;
+  }
+}
