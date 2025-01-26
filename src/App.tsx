@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, HashRouter } from 'react-router-dom';
 
 import LayoutContainer from './components/LayoutContainer';
 import WelcomePage from './pages/WelcomePage';
@@ -17,21 +17,21 @@ const App: React.FC = () => {
   // => 直接全部跳转到 /welcome
   if (!token) {
     return (
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           {/* 专门放行 /welcome，让用户可以看到欢迎页 */}
           <Route path="/welcome" element={<WelcomePage />} />
           {/* 其他任意路径，全部重定向到 /welcome */}
           <Route path="*" element={<Navigate to="/welcome" replace />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     );
   }
 
   // 如果有 notionToken，则渲染主布局
   // 默认 / => /workshop
   return (
-    <BrowserRouter>
+    <HashRouter>
       <LayoutContainer>
         <Routes>
           {/* 默认首页重定向到 /workshop */}
@@ -46,7 +46,7 @@ const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/workshop" replace />} />
         </Routes>
       </LayoutContainer>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 
