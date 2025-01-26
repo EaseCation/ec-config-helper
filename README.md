@@ -1,50 +1,36 @@
-# React + TypeScript + Vite
+# EaseCation Config Helper
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+这是一个用于生成 EaseCation 配置文件的工具。
 
-Currently, two official plugins are available:
+为了尽可能的轻量化，没有后端，只有前端，可以直接在线使用，不依赖任何服务。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 功能
 
-## Expanding the ESLint configuration
+1. 商品表配置文件生成
+2. 暂时没做哦～
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## 运行方法
 
-- Configure the top-level `parserOptions` property like this:
+1. 下载项目到本地
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+    ```bash
+    git clone https://github.com/EaseCation/ec-config-helper.git
+    ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+2. 进入项目目录
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+    ```bash
+    cd ec-config-helper
+    ```
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+3. 安装依赖
+
+    ```bash
+    yarn install
+    ```
+
+4. 运行项目
+
+    ```bash
+    yarn dev
+    ```
