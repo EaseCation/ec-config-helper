@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Button, Input, message } from 'antd';
+import { Button, Input, message, Typography } from 'antd';
 import { getNotionToken, fetchNotionAllPages } from '../notion/notionClient';
 import { formatCommodity } from '../services/commodityService';
 import { downloadJson } from '../utils/download';
+
+const { Title } = Typography;
 
 const CommodityPage: React.FC = () => {
   const [databaseId, setDatabaseId] = useState('');
@@ -37,7 +39,7 @@ const CommodityPage: React.FC = () => {
 
   return (
     <div className="responsive-padding">
-      <h2>Commodity 总分类 JSON 自动生成</h2>
+      <Title style={{ margin: "8px 0 16px" }}>Commodity 总分类 JSON 自动生成</Title>
       <Input
         style={{ width: 300 }}
         placeholder="请输入 Commodity 数据库 ID"

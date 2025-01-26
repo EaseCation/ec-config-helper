@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Button, Input, Space, message } from 'antd';
+import { Button, Input, Space, message, Typography } from 'antd';
 import { getNotionToken, fetchNotionAllPages } from '../notion/notionClient';
 import { formatLottery } from '../services/lotteryService';
 import { downloadJson } from '../utils/download';
+
+const { Title } = Typography;
 
 const LotteryPage: React.FC = () => {
   const [databaseId, setDatabaseId] = useState('');
@@ -38,7 +40,7 @@ const LotteryPage: React.FC = () => {
   return (
     <div className="responsive-padding">
       <Space direction="vertical">
-        <h2>抽奖箱配置自动生成</h2>
+        <Title style={{ margin: "8px 0 16px" }}>抽奖箱配置自动生成</Title>
         <Input
           placeholder="请输入抽奖箱 Database ID"
           value={databaseId}

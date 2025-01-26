@@ -1,4 +1,4 @@
-import { WorkshopItem } from "../../types/workshop";
+import { WorkshopCommodityExchange, WorkshopCommodityGainAnimation, WorkshopItem } from "../../types/workshop";
 import { WORKSHOP_DEFAULTS } from "./workshopConstants";
 
 /**
@@ -9,7 +9,7 @@ export function getImageURL(
   category: string,
   parts: string
 ): string {
-  const { idItem, shopImage, "suitIdItem": suitIditem } = item;
+  const { idItem, shopImage, suitIdItem } = item;
 
   // 如果“商店图片”有配置，优先使用
   if (shopImage) {
@@ -31,7 +31,7 @@ export function getImageURL(
       return `http://oss.easecation.net/${category}/${idItem}.jpg`;
     case "ornament":
       if (parts === "套装") {
-        return `http://oss.easecation.net/${category}/suit.${suitIditem}.png`;
+        return `http://oss.easecation.net/${category}/suit.${suitIdItem}.png`;
       }
       return `http://oss.easecation.net/${category}/${idItem}.png`;
     default:
@@ -70,7 +70,7 @@ export function generateExchange(
   item: WorkshopItem,
   idComplete: string,
   category: string
-): Record<string, any> | undefined {
+): WorkshopCommodityExchange | undefined {
   const price = item["price"] ?? 0;
   const unit = item["priceUnit"] || "";
   const idItem = item["idItem"] || "";
@@ -126,7 +126,7 @@ export function generateGainAnimation(
   item: WorkshopItem,
   category: string,
   parts: string
-): Record<string, any> | undefined {
+): WorkshopCommodityGainAnimation | undefined {
   if (!item.imageMask) {
     return undefined;
   }

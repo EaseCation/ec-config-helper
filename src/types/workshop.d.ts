@@ -25,3 +25,68 @@ export interface WorkshopItem {
     "category": string | null;
     "idItem": string | null;
 }
+
+export interface WorkshopCommodityConfig {
+    _comment: string;
+    typeId: string;
+    items: {
+        [key: string]: WorkshopCommodityConfigItem;
+    };
+}
+
+export interface WorkshopCommodityConfigItem {
+    id: string;
+    workshop: {
+        name: string;
+        introduce: string;
+        rarity: string;
+        discount: number;
+        image: string;
+        imageSize: [number, number];
+        preview?: WorkshopCommodityConfigPreview;
+        howMsg?: string;
+        howAction?: string;
+        gainAnimation?: WorkshopCommodityGainAnimation;
+        hide?: boolean;
+    };
+    exchange?: WorkshopCommodityExchange;
+
+}
+
+export type WorkshopCommodityConfigPreview =
+  | { type: 'creature'; creature: string; scale?: number; offset?: [number, number]; extraButton?: ExtraButton }
+  | { type: 'pet'; pet: string; scale?: number; offset?: [number, number]; extraButton?: ExtraButton }
+  | { type: 'ornament'; ornaments: string[]; scale?: number; offset?: [number, number]; extraButton?: ExtraButton }
+  | { type: 'self'; scale?: number; offset?: [number, number]; rotation?: boolean; animations?: Record<string, string>; extraButton?: ExtraButton }
+  | { type: 'self_prefix'; prefix: string; scale?: number; offset?: [number, number]; extraButton?: ExtraButton }
+  | { type: 'image'; image: string; size?: [number, number]; extraButton?: ExtraButton }
+  | { type: 'music'; music: string; extraButton?: ExtraButton }
+  | { type: 'attack_eff'; image: string; size?: [number, number]; attack_eff: string; extraButton?: ExtraButton }
+  | { type: 'deathshow'; deathshow: string; extraButton?: ExtraButton };
+
+export interface ExtraButton {
+    text: string;
+    action: Record<string, any>;
+}
+
+export type WorkshopCommodityExchange = {
+    buyExchange: {
+        key: string;
+        spend?: {
+            diamond?: number;
+            coin?: number;
+            exp?: number;
+        }
+        price?: {
+            type: string;
+            currency: string;
+            amount: number;
+        };
+        gain?: string | string[];
+    };
+}
+
+export type WorkshopCommodityGainAnimation = {
+    image: string;
+    imageMask: string;
+}

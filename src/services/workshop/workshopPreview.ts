@@ -1,9 +1,4 @@
-import { WorkshopItem } from "../../types/workshop";
-
-interface Preview {
-  type: string;
-  [key: string]: any;
-}
+import { WorkshopCommodityConfigPreview, WorkshopItem } from "../../types/workshop";
 
 /**
  * 根据category/parts以及部分字段，生成预览用的 preview 对象。
@@ -12,8 +7,11 @@ export function generatePreview(
   item: WorkshopItem,
   idComplete: string,
   image: string
-): Preview {
+): WorkshopCommodityConfigPreview {
   const { category, idItem, "ornamentPart": parts, useFullPreview } = item;
+  if (!idItem) {
+    throw new Error("idItem is required");
+  }
 
   // 如果勾选了“使用原图Preview”
   if (useFullPreview) {
@@ -70,7 +68,7 @@ export function generatePreview(
     case "weaponskin":
       return {
         type: "self",
-        item: item["weaponSkinItemId"] || ""
+        //item: item["weaponSkinItemId"] || ""
       };
 
     case "attack-eff":

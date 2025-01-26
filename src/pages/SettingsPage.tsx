@@ -12,26 +12,9 @@ const SettingsPage: React.FC = () => {
     form.setFieldsValue({ notionToken: token });
   }, [token, form]);
 
-  const testFileSystemAPI = async () => {
-    try {
-      const handle = await window.showDirectoryPicker()
-      console.log('Selected directory:', handle);
-    } catch (error) {
-      console.error('Error selecting directory:', error);
-    }
-  };
-
   return (
     <div className="responsive-padding">
-      <Title level={2}>设置</Title>
-      <Button
-        onClick={testFileSystemAPI}
-      >
-        测试文件系统API
-      </Button>
-      <Paragraph>
-        Notion Token
-      </Paragraph>
+      <Title style={{ margin: "8px 0 24px" }}>设置</Title>
       <Form
         form={form}
         initialValues={{ notionToken: token }}
@@ -39,6 +22,9 @@ const SettingsPage: React.FC = () => {
           setToken(notionToken);
         }}
       >
+        <Paragraph>
+          Notion Token
+        </Paragraph>
         <Form.Item
           name={'notionToken'}
           rules={[
@@ -49,6 +35,7 @@ const SettingsPage: React.FC = () => {
           <Input
             type={'password'}
             placeholder="请输入 Notion Token"
+            style={{ width: 500 }}
           />
         </Form.Item>
         <Space>

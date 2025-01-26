@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Button, Checkbox, Space, message, Flex } from 'antd';
+import { Button, Checkbox, Space, Typography, Flex } from 'antd';
 import { getNotionToken, fetchNotionAllPages } from '../notion/notionClient';
-import { NOTION_DATABASE_WORKSHOP, WORKSHOP_TYPES } from '../notion/notionFilters';
 import { formatWorkshop } from '../services/workshop/workshopService';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import useMessage from "antd/es/message/useMessage";
+import { NOTION_DATABASE_WORKSHOP, WORKSHOP_TYPES } from "../services/workshop/workshopNotionQueries";
 
-const WorkshopPage: React.FC = () => {
+const { Title } = Typography;
+
+const LegacyWorkshopPage: React.FC = () => {
   const [checkedTypes, setCheckedTypes] = useState<string[]>(Object.keys(WORKSHOP_TYPES));
   const [loading, setLoading] = useState(false);
   const [messageApi, messageContext] = useMessage();
@@ -88,7 +90,7 @@ const WorkshopPage: React.FC = () => {
   return (
     <div className="responsive-padding">
       {messageContext}
-      <h2>商品表 JSON 自动生成</h2>
+      <Title style={{ margin: "8px 0 16px" }}>商品表 JSON 生成（旧版）</Title>
       <Space style={{ marginBottom: 16 }}>
         <Button onClick={selectAll}>全选</Button>
         <Button onClick={deselectAll}>全不选</Button>
@@ -116,4 +118,4 @@ const WorkshopPage: React.FC = () => {
   );
 };
 
-export default WorkshopPage;
+export default LegacyWorkshopPage;

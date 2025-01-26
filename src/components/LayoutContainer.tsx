@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layout, Menu, theme } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingOutlined, SettingOutlined } from '@ant-design/icons';
+import { ShoppingOutlined, SettingOutlined, BuildOutlined } from '@ant-design/icons';
 import Sider from "antd/es/layout/Sider";
 
 const { Header, Content, Footer } = Layout;
@@ -12,7 +12,8 @@ const LayoutContainer: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   const items = [
     /*{ label: <Link to="/lottery">抽奖箱生成</Link>, key: '/lottery', icon: <GiftOutlined /> },*/
-    { label: <Link to="/workshop">商品表生成</Link>, key: '/workshop', icon: <ShoppingOutlined /> },
+    { label: <Link to="/workshop">商品表同步</Link>, key: '/workshop', icon: <ShoppingOutlined /> },
+    { label: <Link to="/lworkshop">商品表（旧版）</Link>, key: '/lworkshop', icon: <BuildOutlined/> },
     /*{ label: <Link to="/commodity">总分类生成</Link>, key: '/commodity', icon: <AppstoreAddOutlined /> },*/
     { label: <Link to="/settings">设置</Link>, key: '/settings', icon: <SettingOutlined />}
   ];
@@ -21,21 +22,27 @@ const LayoutContainer: React.FC<{ children: React.ReactNode }> = ({ children }) 
     token: { colorTextBase },
   } = theme.useToken();
 
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
     <Layout>
       <Sider
         breakpoint="lg"
-        collapsedWidth="0"
-        onBreakpoint={(broken) => {
-          console.log(broken);
-        }}
-        onCollapse={(collapsed, type) => {
-          console.log(collapsed, type);
-        }}
+        collapsedWidth={56}
+        collapsible
+        collapsed={collapsed}
+        onCollapse={(value) => setCollapsed(value)}
       >
-        <div style={{ height: 32, margin: "12px 16px", color: colorTextBase, fontSize: 18, display: "flex", alignItems: "center" }}>
+        {!collapsed && (<div style={{
+          height: 32,
+          margin: "12px 16px",
+          color: colorTextBase,
+          fontSize: 18,
+          display: "flex",
+          alignItems: "center"
+        }}>
           EC 配置生成器
-        </div>
+        </div>)}
         <Menu
           theme="dark"
           mode="vertical"
