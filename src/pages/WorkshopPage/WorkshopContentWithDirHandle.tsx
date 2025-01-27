@@ -100,6 +100,9 @@ const WorkshopContentWithDirHandle: React.FC = () => {
       };
       setDifferentParts(findDifferentParts(localJson, remoteJsonMap[currentType]));
       setMergedJson(mergeJson(localJson, remoteJsonMap[currentType]))
+    } else if (!localJson && remoteJsonMap[currentType]) {
+      setDifferentParts({});
+      setMergedJson(remoteJsonMap[currentType]);
     }
   }, [localJson, remoteJsonMap, currentType]);
 

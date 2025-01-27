@@ -15,7 +15,7 @@ const WorkshopPage: React.FC = () => {
       <Layout>
         {messageContext}
         <WorkshopHeaderBar />
-        <Content className={"responsive-padding"}>
+        <Content className={"responsive-padding"} style={{ paddingTop: 8 }}>
           <WorkshopContent />
         </Content>
       </Layout>

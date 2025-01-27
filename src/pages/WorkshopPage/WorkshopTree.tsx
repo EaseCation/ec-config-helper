@@ -1,4 +1,4 @@
-import { Space, Tag, Tree, TreeDataNode, Typography } from "antd";
+import { Empty, Space, Tag, Tree, TreeDataNode, Typography } from "antd";
 import React, { ReactNode, useEffect, useState } from "react";
 import { WorkshopCommodityConfig, WorkshopCommodityConfigItem } from "../../types/workshop";
 import { highlightLineDiff } from "../../utils/diffHelper";
@@ -95,7 +95,7 @@ const WorkshopTree: React.FC<WorkshopTreeProps> = ({ checkable, fullJson, differ
     }
   }, [checkable, fullJson, differentParts]);
 
-  return (
+  return treeData.length > 0 ? (
     <Tree
       blockNode
       expandedKeys={expandedKeys}
@@ -117,7 +117,12 @@ const WorkshopTree: React.FC<WorkshopTreeProps> = ({ checkable, fullJson, differ
       }}
       treeData={treeData}
     />
-  )
+  ) :
+    <Empty
+      style={{ marginTop: 80 }}
+      image={Empty.PRESENTED_IMAGE_SIMPLE}
+      description={"Notion 中的数据为空"}
+    />
 }
 
 export default WorkshopTree;
