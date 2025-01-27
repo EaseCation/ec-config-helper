@@ -142,21 +142,24 @@ const WorkshopContentWithDirHandle: React.FC = () => {
       setSaving(true);
       const selectedDifferentParts = findSelectedDifferentParts();
       const remoteJson = remoteJsonMap[currentType];
-      const newJson: WorkshopCommodityConfig = {
-        ...remoteJson,
-        items: {
-          ...localJson.items
-        }
-      }
+      const newJson = mergeJson(localJson, remoteJson)
 
       // 根据 selectedDifferentParts 处理newJson的items，考虑 'add' | 'remove' | 'changed' 三种情况
+      for (let differentPartsKey in differentParts) {
+        if (selectedDifferentParts[differentPartsKey] === undefined) {
+          const unChecked = differentParts[differentPartsKey];
+          if (unChecked.mode === 'add') {
+            delete newJson.items[unChecked.key];
+          } else if (unChecked.mode === 'remove' && unChecked.from) {
+            newJson.items[unChecked.key] = unChecked.from;
+          } else if (unChecked.mode === 'changed' && unChecked.from) {
+            newJson.items[unChecked.key] = unChecked.from;
+          }
+        }
+      }
       for (const key in selectedDifferentParts) {
-        if (selectedDifferentParts[key].mode === 'add') {
-          newJson.items[key] = remoteJson.items[key];
-        } else if (selectedDifferentParts[key].mode === 'remove') {
+        if (selectedDifferentParts[key].mode === 'remove') {
           delete newJson.items[key];
-        } else if (selectedDifferentParts[key].mode === 'changed') {
-          newJson.items[key] = remoteJson.items[key];
         }
       }
 
