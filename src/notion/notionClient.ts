@@ -54,7 +54,6 @@ export async function fetchNotionAllPages(
       ...initialBody,
       start_cursor: nextCursor
     };
-
     const { results, has_more, next_cursor } = await notionQueryDatabase(databaseId, body);
     all = all.concat(results);
     hasMore = has_more;

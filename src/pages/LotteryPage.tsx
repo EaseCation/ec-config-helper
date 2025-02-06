@@ -7,7 +7,7 @@ import { downloadJson } from '../utils/download';
 const { Title } = Typography;
 
 const LotteryPage: React.FC = () => {
-  const [databaseId, setDatabaseId] = useState('');
+  const [databaseId, setDatabaseId] = useState('9e151c3d30b14d1bae8dd972d17198c1');
   const [loading, setLoading] = useState(false);
 
   const handleGenerate = async () => {
@@ -46,6 +46,7 @@ const LotteryPage: React.FC = () => {
           value={databaseId}
           onChange={(e) => setDatabaseId(e.target.value)}
           style={{ width: 400 }}
+          addonBefore="抽奖箱 Database ID："  // 在左侧添加提示
         />
         <Button type="primary" loading={loading} onClick={handleGenerate}>
           生成 Lottery JSON 并下载

@@ -1,35 +1,109 @@
+import { json } from 'stream/consumers';
 import { NotionPage } from '../notion/notionTypes';
+import { parseRichText, flatProperty, parseCheckbox, parseRollup} from './commonFormat'
+
+interface WikiGainItem {
+  weight: number;
+  exc?: string;       // 条件存在的属性
+  fallback?: boolean; // 条件存在的属性
+  name?: string;      // 条件存在的属性
+  data?: number;      // 条件存在的属性
+}
+
+// 创建 wikiResult 对象（需先定义类型）
+interface WikiResult {
+  name: string;
+  exc: string;
+  display: boolean;
+  fallbackTimes: number;
+  gain: WikiGainItem[]; // 使用定义的类型
+}
 
 /** 生成 Lottery 所需 JSON */
-export function formatLottery(pages: NotionPage[]): Record<string, any> {
-  // 这里演示：对 pages 做简单遍历，调用与 PHP 类似的逻辑
-  // 你可以把你 PHP 里 formatLottery 的各段移植并翻译为 TS
-
+export function formatLottery(pages: NotionPage[]): string {
   if (pages.length === 0) {
-    return { error: 'No lottery data' };
+    return JSON.stringify({ error: 'No lottery data' });
   }
 
-  /*// 假设每个 Page -> row
-  // 先简单拿第一个page获取 exchange_id, 具体按实际逻辑
-  const first = pageToRecord(pages[0]);
-  const exchangeid = first.exchange_id || 'unknown';
+  const first = pages[0];
+  const exchangeId = parseRollup(first.properties.exchange_id);
+  const exchangeRealName: string = exchangeId.replace(/\./g, '_');
+  const ifNeedKey = JSON.parse(parseRollup(first.properties['需要钥匙？']));
+  const whenCallFallback = Number(flatProperty(first.properties.whenCallFallback)) || 0;
+  const exchangeCallFallbackName = `lottery.times.${exchangeId}`;
 
-  const result: any = {
-    name: `exc_lottery_${exchangeid.replace(/\./g, '_')}`,
+  const ifWiki = JSON.parse(parseRollup(first.properties['展示到wiki？']));
+  const wikiDisplayName = parseRollup(first.properties['wikiDisplayName']);
+  
+  const wikiResult: WikiResult = {
+    name: wikiDisplayName || '', // 处理空值情况
+    exc: exchangeId,
+    display: ifWiki, // 转换为布尔值
+    fallbackTimes: Number(whenCallFallback) || 0, // 转换为数字
     gain: []
-  };*/
+  };
 
-  /*for (const page of pages) {
-    const row = pageToRecord(page);
-    // 类似 PHP 里的 itemWeight, itemExchangeID ...
-    const itemWeight = Number(row['权重'] ?? 1);
-    const itemMerchandise = `${row['商品全称']}:${row['数量'] ?? 1}`;
+  let result: { [key: string]: any } = { gain: [] }; // 保持 result 为一个对象而不是 null
+  if (ifNeedKey) {
+      // need key
+      result["spend"] = `key.${exchangeId}:1`;
+  }
 
-    result.gain.push({
-      weight: itemWeight,
-      merchandises: [itemMerchandise]
-    });
-  }*/
+  for (const item of pages) {
+    const itemExchangeID = parseRollup(item.properties.gainExchangeID);
+    const itemWeight = Number(flatProperty(item.properties['权重'])) || 0;
+    const itemData = Number(flatProperty(item.properties['数量'])) || 1;
+    const itemMerchandise = `${parseRollup(item.properties['商品全称'])}:${itemData}`;
+    const itemExchangeCallFallback = parseCheckbox(item.properties['保底？']);
 
-  return {};
+    const itemResult: any = {
+      weight: itemWeight
+    };
+
+    const itemWikiResult: any = {
+      weight: itemWeight
+    };
+
+    if (itemExchangeID) {
+      const formattedItemExchangeID = `exc_lottery_${itemExchangeID.replace(/\./g, '_')}`;
+
+      itemWikiResult["exc"] = formattedItemExchangeID;
+      itemWikiResult["fallback"] = itemExchangeCallFallback;
+
+      itemResult["subExchanges"] = formattedItemExchangeID;
+
+      if (whenCallFallback > 0) {
+        if (!itemExchangeCallFallback) {
+          itemResult["condition"] = `{${exchangeCallFallbackName}} < ${whenCallFallback}`;
+          itemResult["callback"] = {
+            type: "merchandise.add",
+            merchandise: `${exchangeCallFallbackName}:1`
+          };
+        } else {
+          itemResult["condition"] = `{${exchangeCallFallbackName}} >= ${whenCallFallback}`;
+          itemResult["callback"] = {
+            type: "merchandise.set",
+            merchandise: `${exchangeCallFallbackName}:0`
+          };
+        }
+      }
+    } else {
+      itemResult["merchandises"] = [itemMerchandise];
+      itemWikiResult["name"] = parseRollup(item.properties.wikiDisplayItemName);
+      itemWikiResult["data"] = itemData;
+    }
+
+    if (!itemExchangeID && !parseRollup(item.properties.商品全称)) {
+      continue; // 跳过这项，继续下一个循环
+    } else {
+      result["gain"].push(itemResult);
+      wikiResult["gain"].push(itemWikiResult);
+    }
+  }
+
+  return JSON.stringify({
+    name: exchangeRealName,
+    result: result,
+    wiki_result: wikiResult
+  })
 }

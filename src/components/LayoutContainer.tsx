@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Layout, Menu, theme } from 'antd';
 import { Link, useLocation } from 'react-router-dom';
-import { ShoppingOutlined, SettingOutlined, BuildOutlined } from '@ant-design/icons';
+import { ShoppingOutlined, SettingOutlined, BuildOutlined, GiftOutlined} from '@ant-design/icons';
 import Sider from "antd/es/layout/Sider";
 
 const { Header, Content, Footer } = Layout;
@@ -15,6 +15,7 @@ const LayoutContainer: React.FC<{ children: React.ReactNode }> = ({ children }) 
     { label: <Link to="/workshop">商品表同步</Link>, key: '/workshop', icon: <ShoppingOutlined /> },
     { label: <Link to="/lworkshop">商品表（旧版）</Link>, key: '/lworkshop', icon: <BuildOutlined/> },
     /*{ label: <Link to="/commodity">总分类生成</Link>, key: '/commodity', icon: <AppstoreAddOutlined /> },*/
+    { label: <Link to="/lottery">抽奖箱生成</Link>, key: '/lottery', icon: <GiftOutlined />},
     { label: <Link to="/settings">设置</Link>, key: '/settings', icon: <SettingOutlined />}
   ];
 
