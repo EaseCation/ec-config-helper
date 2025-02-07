@@ -1,6 +1,16 @@
-import { json } from 'stream/consumers';
 import { NotionPage } from '../notion/notionTypes';
-import { parseRichText, flatProperty, parseCheckbox, parseRollup} from './commonFormat'
+import { flatProperty, parseCheckbox, parseRollup} from './commonFormat'
+
+
+const DEFAULT_WIKI_RESULT: WikiResult = {
+  name: "",
+  exc: "",
+  display: false,
+  fallbackTimes: 0,
+  gain: []
+};
+
+const DEFAULT_RESULT = { error: 'No lottery data' };
 
 interface WikiGainItem {
   weight: number;
@@ -19,67 +29,101 @@ interface WikiResult {
   gain: WikiGainItem[]; // 使用定义的类型
 }
 
+interface ResultType {
+  name: string;
+  result: { [key: string]: any }; 
+  wiki_result: WikiResult;
+}
+
 /** 生成 Lottery 所需 JSON */
-export function formatLottery(pages: NotionPage[]): string {
+export function formatLottery(pages: NotionPage[]): ResultType  {
   if (pages.length === 0) {
-    return JSON.stringify({ error: 'No lottery data' });
+    return { 
+      name: "",
+      result: DEFAULT_RESULT,
+      wiki_result: DEFAULT_WIKI_RESULT
+    };
   }
 
   const first = pages[0];
   const exchangeId = parseRollup(first.properties.exchange_id);
-  const exchangeRealName: string = exchangeId.replace(/\./g, '_');
-  const ifNeedKey = JSON.parse(parseRollup(first.properties['需要钥匙？']));
-  const whenCallFallback = Number(flatProperty(first.properties.whenCallFallback)) || 0;
+  const exchangeRealName: string = `exc_lottery_${exchangeId.replace(/\./g, '_')}`;
+  if(exchangeId == '') {
+    console.log(JSON.stringify(pages))
+  }
+  console.log(JSON.stringify(exchangeId))
+  const ifNeedKeyDefult = parseRollup(first.properties['需要钥匙？']);
+  let ifNeedKey;
+  if(ifNeedKeyDefult === '') {
+    ifNeedKey = false;
+  } else {
+    ifNeedKey = JSON.parse(ifNeedKeyDefult);
+  }
+
+
+  const whenCallFallback = Number(flatProperty(first.properties.whenCallFallback));
   const exchangeCallFallbackName = `lottery.times.${exchangeId}`;
 
-  const ifWiki = JSON.parse(parseRollup(first.properties['展示到wiki？']));
+  const ifWikiCopy = parseRollup(first.properties['展示到wiki？']);
+  let ifWiki;
+  if (ifWikiCopy === '') {
+    ifWiki = false;
+  } else {
+    ifWiki = JSON.parse(ifWikiCopy)
+  }
   const wikiDisplayName = parseRollup(first.properties['wikiDisplayName']);
   
   const wikiResult: WikiResult = {
     name: wikiDisplayName || '', // 处理空值情况
     exc: exchangeId,
     display: ifWiki, // 转换为布尔值
-    fallbackTimes: Number(whenCallFallback) || 0, // 转换为数字
+    fallbackTimes: whenCallFallback, // 转换为数字
     gain: []
   };
 
-  let result: { [key: string]: any } = { gain: [] }; // 保持 result 为一个对象而不是 null
+  let result: { [key: string]: any } = {}; // 保持 result 为一个对象而不是 null
   if (ifNeedKey) {
       // need key
       result["spend"] = `key.${exchangeId}:1`;
   }
+  result["gain"] = [];
 
   for (const item of pages) {
-    const itemExchangeID = parseRollup(item.properties.gainExchangeID);
-    const itemWeight = Number(flatProperty(item.properties['权重'])) || 0;
-    const itemData = Number(flatProperty(item.properties['数量'])) || 1;
-    const itemMerchandise = `${parseRollup(item.properties['商品全称'])}:${itemData}`;
-    const itemExchangeCallFallback = parseCheckbox(item.properties['保底？']);
-
+    let itemExchangeID = parseRollup(item.properties.gainExchangeID);
+    if(itemExchangeID) {
+      itemExchangeID = `exc_lottery_${itemExchangeID.replace(/\./g, '_')}`;
+    }
+    const itemWeight = Number(flatProperty(item.properties['权重']));
     const itemResult: any = {
       weight: itemWeight
     };
-
     const itemWikiResult: any = {
       weight: itemWeight
     };
 
-    if (itemExchangeID) {
-      const formattedItemExchangeID = `exc_lottery_${itemExchangeID.replace(/\./g, '_')}`;
-
-      itemWikiResult["exc"] = formattedItemExchangeID;
+    itemResult["weight"] = itemWeight;
+    itemWikiResult["weight"] = itemWeight;
+    const itemData = Number(flatProperty(item.properties['数量'])) || 1;
+    const itemMerchandise = `${parseRollup(item.properties['商品全称'])}:${itemData}`;
+    if(itemExchangeID) {
+      // exchange item
+      const itemExchangeCallFallback = parseCheckbox(item.properties['保底？']);
+      //wiki
+      itemWikiResult["exc"] = itemExchangeID;
       itemWikiResult["fallback"] = itemExchangeCallFallback;
 
-      itemResult["subExchanges"] = formattedItemExchangeID;
-
-      if (whenCallFallback > 0) {
+      itemResult["subExchanges"] = itemExchangeID;
+      if(whenCallFallback){
+        // has call back
         if (!itemExchangeCallFallback) {
+          // not fall back
           itemResult["condition"] = `{${exchangeCallFallbackName}} < ${whenCallFallback}`;
           itemResult["callback"] = {
             type: "merchandise.add",
             merchandise: `${exchangeCallFallbackName}:1`
           };
         } else {
+          //fallback
           itemResult["condition"] = `{${exchangeCallFallbackName}} >= ${whenCallFallback}`;
           itemResult["callback"] = {
             type: "merchandise.set",
@@ -88,22 +132,31 @@ export function formatLottery(pages: NotionPage[]): string {
         }
       }
     } else {
+      // other items
       itemResult["merchandises"] = [itemMerchandise];
+
+      // wiki
       itemWikiResult["name"] = parseRollup(item.properties.wikiDisplayItemName);
       itemWikiResult["data"] = itemData;
     }
-
-    if (!itemExchangeID && !parseRollup(item.properties.商品全称)) {
-      continue; // 跳过这项，继续下一个循环
-    } else {
-      result["gain"].push(itemResult);
-      wikiResult["gain"].push(itemWikiResult);
+    // console.log('===================' + JSON.stringify(parseRollup(item.properties['商品全称'])) + '===================' + itemExchangeID)
+    // console.log(JSON.stringify(itemResult))
+    if(exchangeRealName === 'fallback_act_2024_panda') {
+      console.log('---------------------2--------------------------')
     }
+    result["gain"].push(itemResult);
+    wikiResult["gain"].push(itemWikiResult);
+    // if (itemExchangeID) {
+    //   result["gain"].push(itemResult);
+    //   wikiResult["gain"].push(itemWikiResult);
+    // } else {
+    //   result['gain'] = []
+    // }
   }
 
-  return JSON.stringify({
+  return {
     name: exchangeRealName,
     result: result,
     wiki_result: wikiResult
-  })
+  };
 }

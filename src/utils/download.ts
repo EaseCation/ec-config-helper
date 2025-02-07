@@ -5,7 +5,6 @@ export function downloadJson(jsonData: any, fileName: string) {
 
   // 创建 Blob 对象，确保文件类型是 JSON 文件
   const blob = new Blob([jsonData], { type: 'application/json;charset=utf-8' });
-  console.log(blob)
   // 创建一个 URL 对象，以便生成下载链接
   const url = URL.createObjectURL(blob);
 
