@@ -1,5 +1,5 @@
 import { NotionPage } from '../notion/notionTypes';
-import { flatProperty, parseCheckbox, parseRollup} from './commonFormat'
+import { flatProperty, parseCheckbox, parseRollup, parseRelation} from './commonFormat'
 
 
 const DEFAULT_WIKI_RESULT: WikiResult = {
@@ -48,10 +48,6 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
   const first = pages[0];
   const exchangeId = parseRollup(first.properties.exchange_id);
   const exchangeRealName: string = `exc_lottery_${exchangeId.replace(/\./g, '_')}`;
-  if(exchangeId == '') {
-    console.log(JSON.stringify(pages))
-  }
-  console.log(JSON.stringify(exchangeId))
   const ifNeedKeyDefult = parseRollup(first.properties['需要钥匙？']);
   let ifNeedKey;
   if(ifNeedKeyDefult === '') {
@@ -100,7 +96,7 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
     const itemWikiResult: any = {
       weight: itemWeight
     };
-
+    
     itemResult["weight"] = itemWeight;
     itemWikiResult["weight"] = itemWeight;
     const itemData = Number(flatProperty(item.properties['数量'])) || 1;
@@ -139,11 +135,7 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
       itemWikiResult["name"] = parseRollup(item.properties.wikiDisplayItemName);
       itemWikiResult["data"] = itemData;
     }
-    // console.log('===================' + JSON.stringify(parseRollup(item.properties['商品全称'])) + '===================' + itemExchangeID)
-    // console.log(JSON.stringify(itemResult))
-    if(exchangeRealName === 'fallback_act_2024_panda') {
-      console.log('---------------------2--------------------------')
-    }
+
     result["gain"].push(itemResult);
     wikiResult["gain"].push(itemWikiResult);
     // if (itemExchangeID) {

@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { Button, Input, Space, message, Typography } from 'antd';
 import { getNotionToken, fetchNotionAllPages } from '../notion/notionClient';
 import { formatLottery } from '../services/lotteryService';
-import { downloadJson } from '../utils/download';
-import { parseCheckbox, parseRollup } from '../services/commonFormat'
+import { downloadJsonAsZip } from '../utils/download';
+import { parseCheckbox, parseRollup, parseRelation } from '../services/commonFormat';
 
 const { Title } = Typography;
+
+function splitString(input: string): string[] {
+  return input.split(', ').filter(item => item !== '');
+}
 
 const LotteryPage: React.FC = () => {
   const [databaseId, setDatabaseId] = useState('9e151c3d30b14d1bae8dd972d17198c1');
@@ -27,32 +31,49 @@ const LotteryPage: React.FC = () => {
       // 1. 获取所有页面
       const pages = await fetchNotionAllPages(databaseId, {});
 
-      let result: { [key: string]: any } = {}
+      // 2. 根据 exchange_id 分组
+      let result: { [key: string]: any } = {};
+      let exchangeIdBoxId: { [key: string]: string } = {};
+
       for (const item of pages) {
         if (parseCheckbox(item.properties['禁用'])) {
           continue;
         }
+
+        const boxId = parseRelation(item.properties['所在抽奖箱']);
         const id = parseRollup(item.properties['exchange_id']);
-        if (!result[id]) {
-          result[id] = [];
+        if (id === '') {
+          continue;
         }
-        result[id].push(item);
+
+        for (const box of splitString(boxId)) {
+          if (!result[box]) {
+            result[box] = []; // 初始化数组
+          }
+          result[box].push(item);
+
+          if (splitString(boxId).length <= 1) {
+            exchangeIdBoxId[box] = id;
+          }
+        }
       }
-      // 2. 将pages 转为我们需要的抽奖JSON
-      let fullArry: { [key: string]: any } = {};
-      let fullWikiArray: { [key: string]: any } = {};
-      //循环遍历result 并将他们惊醒
-      Object.values(result).forEach(value => {
-        const array = formatLottery(value);
-        if (array.name && array.name !== '') {
-          fullArry[array.name] = array.result;
+
+      // 3. 将 pages 转换为 Lottery JSON 并构建 fileArray
+      let fileArray: { [key: string]: any } = {};
+
+      for (const key in result) {
+        if (result.hasOwnProperty(key)) {
+          const formattedData = formatLottery(result[key]);
+          if (formattedData.name && formattedData.name !== '') {
+            fileArray[exchangeIdBoxId[key]] = {
+              [formattedData.name]: formattedData.result,
+            };
+          }
         }
-        if(array.wiki_result) {
-          fullWikiArray[array.name] = array.wiki_result;
-        }
-      });
-      // 3. 下载
-      downloadJson(JSON.stringify(fullArry), 'lottery.json');
+      }
+
+      // 4. 下载 ZIP 包
+      downloadJsonAsZip(fileArray, 'lottery');
     } catch (err) {
       message.error('生成失败: ' + (err as Error).message);
       console.error(err);
@@ -70,7 +91,7 @@ const LotteryPage: React.FC = () => {
           value={databaseId}
           onChange={(e) => setDatabaseId(e.target.value)}
           style={{ width: 400 }}
-          addonBefore="抽奖箱 Database ID："  // 在左侧添加提示
+          addonBefore="抽奖箱 Database ID："
         />
         <Button type="primary" loading={loading} onClick={handleGenerate}>
           生成 Lottery JSON 并下载
