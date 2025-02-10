@@ -1,5 +1,5 @@
-import { NotionPage } from '../notion/notionTypes';
-import { flatProperty, parseCheckbox, parseRollup, parseRelation} from './commonFormat'
+import { NotionPage } from '../../notion/notionTypes';
+import { flatProperty, parseCheckbox, parseRollup, parseRelation} from '../commonFormat'
 
 
 const DEFAULT_WIKI_RESULT: WikiResult = {
@@ -29,7 +29,7 @@ interface WikiResult {
   gain: WikiGainItem[]; // 使用定义的类型
 }
 
-interface ResultType {
+export interface ResultType {
   name: string;
   result: { [key: string]: any }; 
   wiki_result: WikiResult;
