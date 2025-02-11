@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Typography, message, theme } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Typography, theme } from "antd";
 import { Content } from "antd/es/layout/layout";
 import LotteryTree from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
@@ -28,7 +28,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   // 获取 Lottery 数据
-  const { loading: remoteJsonLoading, fileArray: remoteJsonMapData } = useLotteryData(NOTION_DATABASE_LOTTERY);
+  const { loading: remoteJsonLoading, fileArray: remoteJsonMapData, refetch } = useLotteryData(NOTION_DATABASE_LOTTERY);
 
   // 切换tab时的状态重置
   useEffect(() => {
@@ -65,9 +65,14 @@ const LotteryContentWithDirHandle: React.FC = () => {
   }, [dirHandle, currentType, ensurePermission, messageApi]);
 
   // 处理加载远程 Notion 数据
-  const handleLoadRemoteJson = async (type: string) => {
+  const handleLoadRemoteJson = async (type: string, flush:boolean) => {
     setRemoteJsonLoadingList((prev) => [...prev, type]);
     messageApi.open({ key: "processing", type: "loading", content: `正在从 Notion 加载 ${type} ...`, duration: 0 });
+
+    // 重新获取 Notion 数据
+    if(flush) {
+      await refetch();
+    }
 
     setRemoteJsonMap((prev) => ({ ...prev, [type]: remoteJsonMapData[currentType] }));
 
@@ -86,7 +91,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
 useEffect(() => {
   if (remoteJsonMapData && Object.keys(remoteJsonMapData).length > 0) {
     // 获取到数据后，主动调用 handleLoadRemoteJson 来更新页面
-    handleLoadRemoteJson(currentType);
+    handleLoadRemoteJson(currentType,false);
   }
 }, [remoteJsonMapData, currentType]);
 
@@ -140,15 +145,25 @@ useEffect(() => {
             style={{ flex: 2, minHeight: "80vh" }}
             title={
               <Space>
-                Notion
+                <span>
+                  Notion
+                  {remoteJsonLoadingList.includes(currentType) && (
+                    <span style={{ color: "#faad14", marginLeft: 8, fontSize: 12 }}>
+                      （正在拉取数据中，请耐心等待...）
+                    </span>
+                  )}
+                </span>
+                
                 <Button
-                  type={'text'}
-                  icon={remoteJsonLoading ? <LoadingOutlined /> : <ReloadOutlined />}
-                  onClick={() => handleLoadRemoteJson(currentType)}
-                  disabled={remoteJsonLoading}
+                  type="text"
+                  icon={remoteJsonLoadingList.includes(currentType) ? <LoadingOutlined style={{fontSize: 16}}/> :
+                                        <ReloadOutlined style={{fontSize: 14, opacity: 0.65}}/>}
+                  onClick={() => handleLoadRemoteJson(currentType,true)}
+                  disabled={remoteJsonLoadingList.includes(currentType)}
                 />
               </Space>
             }
+            loading={remoteJsonLoadingList.includes(currentType)}
             extra={
               remoteJsonMap[currentType] && (
                 <Button
@@ -166,7 +181,7 @@ useEffect(() => {
               <LotteryTree checkable={false} fullJson={remoteJsonMap[currentType]} checkedKeys={checkedKeys} setCheckedKeys={setCheckedKeys} />
             ) : (
               <Flex style={{ padding: "32px 0", justifyContent: "center", alignItems: "center" }}>
-                <Button icon={<CloudDownloadOutlined />} onClick={() => handleLoadRemoteJson(currentType)}>
+                <Button icon={<CloudDownloadOutlined />} onClick={() => handleLoadRemoteJson(currentType,true)}>
                   从 Notion 加载
                 </Button>
               </Flex>

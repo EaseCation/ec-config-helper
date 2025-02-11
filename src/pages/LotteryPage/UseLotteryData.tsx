@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getNotionToken, fetchNotionAllPages } from '../../notion/notionClient';
 import { formatLottery } from '../../services/lottery/lotteryService';
 import { parseCheckbox, parseRollup, parseRelation } from '../../services/commonFormat';
@@ -12,17 +12,22 @@ export const useLotteryData = (databaseId: string) => {
   const [loading, setLoading] = useState(false);
   const [fileArray, setFileArray] = useState<{ [key: string]: any }>({});
 
-  const handleGenerate = async () => {
+  // 重新获取数据的函数
+  const fetchData = useCallback(async () => {
     if (!databaseId) {
-      throw new Error('请先输入 Lottery 数据库 ID');
+      console.error('请先输入 Lottery 数据库 ID');
+      return {};
     }
+
     const token = getNotionToken();
     if (!token) {
-      throw new Error('尚未设置 Notion Token');
+      console.error('尚未设置 Notion Token');
+      return {};
     }
 
     let newFileArray: { [key: string]: any } = {};
     setLoading(true);
+
     try {
       const pages = await fetchNotionAllPages(databaseId, {});
       let result: { [key: string]: any } = {};
@@ -56,17 +61,22 @@ export const useLotteryData = (databaseId: string) => {
           }
         }
       }
+
+      setFileArray(newFileArray);
     } catch (err) {
       console.error('生成失败: ', err);
     } finally {
       setLoading(false);
     }
-    return newFileArray;
-  };
 
-  useEffect(() => {
-    handleGenerate().then(setFileArray).catch(console.error);
+    return newFileArray;
   }, [databaseId]);
 
-  return { loading, fileArray };
+  // 初次加载
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 返回 `refetch` 让外部调用
+  return { loading, fileArray, refetch: fetchData };
 };

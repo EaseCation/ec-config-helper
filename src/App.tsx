@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, HashRouter } from 'react-router
 
 import LayoutContainer from './components/LayoutContainer';
 import WelcomePage from './pages/WelcomePage';
-import LotteryPage from './pages/LotteryPage2';
+import LotteryPage from './pages/LotteryPage';
 import LegacyWorkshopPage from './pages/LegacyWorkshopPage';
 import WorkshopPage from './pages/WorkshopPage';
 import CommodityPage from './pages/CommodityPage';
