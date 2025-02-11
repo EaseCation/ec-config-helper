@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
 import { Button, Input, message, Typography } from 'antd';
 import { getNotionToken, fetchNotionAllPages } from '../notion/notionClient';
-import { formatCommodity } from '../services/commodityService';
+import { NotionQueryBody } from '../notion/notionTypes';
+import { formatCommodity } from '../services/commodity/commodityService';
 import { downloadJson } from '../utils/download';
 
 const { Title } = Typography;
 
 const CommodityPage: React.FC = () => {
-  const [databaseId, setDatabaseId] = useState('');
+  const [databaseId, setDatabaseId] = useState('1959ff1f-c1d4-4754-9014-cd4f3c80c36f');
   const [loading, setLoading] = useState(false);
 
+  const body: NotionQueryBody = {
+    sorts: [
+      {
+        property: "typeId",
+        direction: "ascending"
+      }
+    ]
+  };  
   const handleGenerate = async () => {
     if (!databaseId) {
       message.warning('请先输入 Commodity 数据库 ID');
@@ -24,7 +33,7 @@ const CommodityPage: React.FC = () => {
     setLoading(true);
     try {
       // 1. 获取全部commodity页面
-      const pages = await fetchNotionAllPages(databaseId, {});
+      const pages = await fetchNotionAllPages(databaseId, body);
       // 2. 转换为分类JSON
       const resultJson = formatCommodity(pages);
       // 3. 下载

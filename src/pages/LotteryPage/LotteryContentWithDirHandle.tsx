@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Typography, theme } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop } from "antd";
 import { Content } from "antd/es/layout/layout";
 import LotteryTree from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
@@ -8,8 +8,9 @@ import {
   CloudDownloadOutlined,
   LoadingOutlined,
   ReloadOutlined,
-  SaveOutlined
-} from "@ant-design/icons";
+  SaveOutlined,
+  UpOutlined
+} from "@ant-design/icons";  // 引入回到顶部需要的图标
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
 import { NOTION_DATABASE_LOTTERY, WORKSHOP_TYPES } from "../../services/lottery/lotteryNotionQueries";
 
@@ -141,7 +142,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
 
   /**
    * 构造 Menu 的 items
-   * 这里在顶部和底部各添加两个按钮：“上一页”和“下一页”
+   * 这里在顶部只添加一个“上一页”按钮，在底部只添加一个“下一页”按钮为例。
    */
   const menuItems = [
     {
@@ -165,10 +166,12 @@ const LotteryContentWithDirHandle: React.FC = () => {
    */
   const handleMenuClick = (e: any) => {
     if (e.key === "prev-top" || e.key === "prev-bottom") {
+      // 上一页
       setCurrentPage((page) => Math.max(0, page - 1));
       return;
     }
     if (e.key === "next-top" || e.key === "next-bottom") {
+      // 下一页
       setCurrentPage((page) => Math.min(totalPages - 1, page + 1));
       return;
     }
@@ -254,7 +257,12 @@ const LotteryContentWithDirHandle: React.FC = () => {
             loading={remoteJsonLoadingList.includes(currentType)}
             extra={
               remoteJsonMap[currentType] && (
-                <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={handleSyncRemoteJson}>
+                <Button
+                  icon={<SaveOutlined />}
+                  type="primary"
+                  loading={saving}
+                  onClick={handleSyncRemoteJson}
+                >
                   同步到本地
                 </Button>
               )
@@ -285,6 +293,23 @@ const LotteryContentWithDirHandle: React.FC = () => {
             )}
           </Card>
         </Flex>
+
+        {/* 
+            一键返回顶部：设置 visibilityHeight = 100（示例值），
+            当页面滚动大于这个距离时就会显示该按钮 
+        */}
+        <BackTop visibilityHeight={100}>
+          {/* 自定义按钮样式和图标 */}
+          <Button
+            shape="circle"
+            icon={<UpOutlined />}
+            style={{
+              backgroundColor: "#1890ff",
+              color: "#fff",
+              border: "none",
+            }}
+          />
+        </BackTop>
       </Content>
     </Layout>
   );
