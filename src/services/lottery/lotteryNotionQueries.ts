@@ -3,7 +3,7 @@ export const NOTION_DATABASE_LOTTERY = '9e151c3d30b14d1bae8dd972d17198c1';
 /**
  * 对应 PHP中 WORKSHOP_TYPES 的每个 typeId -> filter & sorts
  */
-export const WORKSHOP_TYPES: string[] = [
+export const LOTTERY_TYPES: string[] = [
   "fallback.sgnew",
   "sub.8",
   "sgnew",

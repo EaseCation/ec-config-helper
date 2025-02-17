@@ -37,7 +37,7 @@ export const useLotteryData = (databaseId: string) => {
         if (parseCheckbox(item.properties['禁用'])) continue;
         const boxId = parseRelation(item.properties['所在抽奖箱']);
         const id = parseRollup(item.properties['exchange_id']);
-        if (id === '') continue;
+        if (id === '') continue
 
         for (const box of splitString(boxId)) {
           if (!result[box]) {

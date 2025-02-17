@@ -1,5 +1,6 @@
-import { NotionPage } from '../../notion/notionTypes';
-
+import { message } from 'antd';
+import { NotionQueryBody } from '../../notion/notionTypes';
+import { getNotionToken, fetchNotionAllPages } from '../../notion/notionClient';
 
 interface NotionProperty {
   [key:string]:any
@@ -138,46 +139,83 @@ export function flatDatabaseProperty(data: NotionProperty): string | number {
   }
 }
 
+const body: NotionQueryBody = {
+  sorts: [
+    {
+      property: "typeId",
+      direction: "ascending",
+    },
+  ],
+};
+
 /**
  * 生成 Commodity JSON
  */
-export function formatCommodity(pages: NotionPage[]): Record<string, any> {
+export const formatCommodity = async (databaseId: string) => {
+  if (!databaseId) {
+    throw new Error("请先输入 Commodity 数据库 ID");
+  }
+
+  const token = getNotionToken();
+  if (!token) {
+    throw new Error("尚未设置 Notion Token");
+  }
+
   const result = {
-    _comment: 'Commodity total categories, auto-generated.',
-    types: [] as any[]
+    _comment: "Commodity total categories, auto-generated.",
+    types: [] as any[],
   };
 
-  // 使用类似于 rawToFullResult 的逻辑，把每条 page 的所有 properties 进行扁平化处理
-  for (const page of pages) {
-    // 准备一个临时对象 data，用来保存各个字段的扁平化结果
-    const data: Record<string, string | number> = {};
+  try {
+    // 1. 获取全部 commodity 页面
+    const pages: any[] = await fetchNotionAllPages(databaseId, body);
 
-    // 遍历 page.properties
-    for (const [propName, propValue] of Object.entries(page.properties)) {
-      // 调用 flatDatabaseProperty 得到可读字符串/数值
-      data[propName] = flatDatabaseProperty(propValue);
+    // 确保 pages 是数组，否则报错
+    if (!Array.isArray(pages)) {
+      throw new Error("从 Notion 获取的 Commodity 数据异常");
     }
 
-    const typeId =  data['typeId']
-    const e: any = {
-      typeId: typeId,
-      generic: {
-        translateKey: data['translateKey']
+    // 遍历 pages，将每条数据转换为 JSON 结构
+    for (const page of pages) {
+      if (!page || typeof page !== "object" || !page.properties) continue;
+
+      // 临时对象 data，保存扁平化的字段
+      const data: Record<string, string | number> = {};
+
+      // 遍历 page.properties，进行扁平化处理
+      for (const [propName, propValue] of Object.entries(
+        page.properties as Record<string, any>
+      )) {
+        data[propName] = flatDatabaseProperty(propValue);
       }
-    };
-    // 如果 fallback完整商品ID 存在且不为空，则添加 exchange 字段
-    if (data["fallback完整商品ID"]) {
-      e.exchange = {
-        fallbackExchange: {
-          key: "workshop_fallback_type_" + typeId,
-          gain: data["fallback完整商品ID"] + ":" + data["fallback商品数量"]
-        }
-      };
-    }
 
-    // 推入 result.data
-    result.types.push(e);
+      const typeId = data["typeId"];
+      if (!typeId) continue; // 确保 typeId 存在
+
+      const commodityItem: any = {
+        typeId: typeId,
+        generic: {
+          translateKey: data["translateKey"] || "",
+        },
+      };
+
+      // 如果 fallback完整商品ID 存在且不为空，则添加 exchange 字段
+      if (data["fallback完整商品ID"]) {
+        commodityItem.exchange = {
+          fallbackExchange: {
+            key: `workshop_fallback_type_${typeId}`,
+            gain: `${data["fallback完整商品ID"]}:${data["fallback商品数量"]}`,
+          },
+        };
+      }
+
+      // 推入 result.types
+      result.types.push(commodityItem);
+    }
+  } catch (err) {
+    console.error("生成 Commodity JSON 失败:", err);
+    throw new Error(`生成失败: ${(err as Error).message}`);
   }
 
   return result;
-}
+};

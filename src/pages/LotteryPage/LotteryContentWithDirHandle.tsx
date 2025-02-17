@@ -12,7 +12,7 @@ import {
   UpOutlined
 } from "@ant-design/icons";  // 引入回到顶部需要的图标
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
-import { NOTION_DATABASE_LOTTERY, WORKSHOP_TYPES } from "../../services/lottery/lotteryNotionQueries";
+import { NOTION_DATABASE_LOTTERY, LOTTERY_TYPES } from "../../services/lottery/lotteryNotionQueries";
 
 const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
@@ -26,7 +26,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
     useContext(WorkshopPageContext);
 
-  const [currentType, setCurrentType] = useState<string>(WORKSHOP_TYPES[0]);
+  const [currentType, setCurrentType] = useState<string>(LOTTERY_TYPES[0]);
   const [localJson, setLocalJson] = useState<{ [key: string]: any } | null>(null);
   const [loadingLocalJson, setLoadingLocalJson] = useState(false);
   const [localFileExists, setLocalFileExists] = useState(false);
@@ -37,11 +37,10 @@ const LotteryContentWithDirHandle: React.FC = () => {
 
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState<number>(0);
-  const totalPages = Math.ceil(WORKSHOP_TYPES.length / PAGE_SIZE);
+  const totalPages = Math.ceil(LOTTERY_TYPES.length / PAGE_SIZE);
 
   // 获取 Lottery 数据
   const {
-    loading: remoteJsonLoading,
     fileArray: remoteJsonMapData,
     refetch,
   } = useLotteryData(NOTION_DATABASE_LOTTERY);
@@ -138,7 +137,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
    */
   const startIndex = currentPage * PAGE_SIZE;
   const endIndex = startIndex + PAGE_SIZE;
-  const currentPageTypes = WORKSHOP_TYPES.slice(startIndex, endIndex);
+  const currentPageTypes = LOTTERY_TYPES.slice(startIndex, endIndex);
 
   /**
    * 构造 Menu 的 items

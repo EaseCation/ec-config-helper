@@ -1,0 +1,207 @@
+import React, { useEffect, useState, useContext } from "react";
+import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop } from "antd";
+import { Content } from "antd/es/layout/layout";
+import LotteryTree from "./CommodityTree";
+import { formatCommodity } from '../../services/commodity/commodityService';
+import {
+  CloudDownloadOutlined,
+  LoadingOutlined,
+  ReloadOutlined,
+  SaveOutlined,
+  UpOutlined
+} from "@ant-design/icons";
+import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
+
+const { Text } = Typography;
+const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/commodity/";
+const NOTION_DATABASE_COMMODITY = "1959ff1f-c1d4-4754-9014-cd4f3c80c36f";
+
+const LotteryContentWithDirHandle: React.FC = () => {
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
+
+  const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
+    useContext(WorkshopPageContext);
+
+  const [localJson, setLocalJson] = useState<{ [key: string]: any } | null>(null);
+  const [loadingLocalJson, setLoadingLocalJson] = useState(false);
+  const [localFileExists, setLocalFileExists] = useState(false);
+  const [remoteJson, setRemoteJson] = useState<{ [key: string]: any } | null>(null);
+  const [loadingRemoteJson, setLoadingRemoteJson] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // 🔹 1. 自动获取 Notion 数据（页面加载时）
+  useEffect(() => {
+    fetchRemoteCommodityData();
+    loadLocalFile();
+  }, []);
+
+  // 🔹 2. 获取 Notion Commodity 数据
+  const fetchRemoteCommodityData = async () => {
+    setLoadingRemoteJson(true);
+    try {
+      const data = await formatCommodity(NOTION_DATABASE_COMMODITY);
+      setRemoteJson(data);
+      messageApi.success("成功获取 Notion 数据");
+    } catch (error: any) {
+      messageApi.error("获取 Notion 数据失败: " + error.message);
+    } finally {
+      setLoadingRemoteJson(false);
+    }
+  };
+
+  // 🔹 3. 加载本地 JSON 文件
+  const loadLocalFile = async () => {
+    setLoadingLocalJson(true);
+    try {
+      const hasPermission = await ensurePermission("read");
+      if (!hasPermission) return;
+      if (!dirHandle) return;
+      const text = await readFile(`${COMMODITY_PATH}commodity.json`);
+      setLocalJson(JSON.parse(text));
+      setLocalFileExists(true);
+    } catch (error: any) {
+      if (error?.message === "NotFoundError") {
+        setLocalFileExists(false);
+        setLocalJson(null);
+      } else {
+        messageApi.error("读取本地文件出错: " + error?.message);
+      }
+    } finally {
+      setLoadingLocalJson(false);
+    }
+  };
+
+  // 🔹 4. 将 Notion 数据同步到本地 JSON 文件
+  const handleSyncRemoteJson = async () => {
+    if (!dirHandle) {
+      messageApi.error("请选择你的代码中的 commodity 文件夹");
+      return;
+    }
+    if (!remoteJson) {
+      messageApi.error("请先加载 Notion 数据");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await writeFile(
+        `${COMMODITY_PATH}commodity.json`,
+        JSON.stringify(remoteJson, null, 4)
+      );
+      setLocalJson(remoteJson);
+      messageApi.success("同步成功！");
+    } catch (error: any) {
+      messageApi.error("保存文件出错: " + error?.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Layout
+      style={{
+        padding: "15px 0",
+        background: colorBgContainer,
+        borderRadius: borderRadiusLG,
+      }}
+    >
+      <Content style={{ padding: "0 24px", minHeight: 280 }}>
+        <Flex gap={16}>
+          {/* 本地 JSON 数据 */}
+          <Card
+            style={{ flex: 2, minHeight: "80vh" }}
+            title={
+              <Space>
+                本地 JSON
+                <Button
+                  type={"text"}
+                  icon={<ReloadOutlined />}
+                  onClick={loadLocalFile}
+                  disabled={loadingLocalJson}
+                />
+              </Space>
+            }
+            loading={loadingLocalJson}
+          >
+            {localFileExists && localJson ? (
+              <LotteryTree checkable={false} fullJson={localJson} />
+            ) : (
+              <Text type="warning">本地 JSON 文件未找到</Text>
+            )}
+          </Card>
+
+          {/* Notion JSON 数据 */}
+          <Card
+            style={{ flex: 2, minHeight: "80vh" }}
+            title={
+              <Space>
+                Notion 数据
+                <Button
+                  type="text"
+                  icon={
+                    loadingRemoteJson ? (
+                      <LoadingOutlined style={{ fontSize: 16 }} />
+                    ) : (
+                      <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
+                    )
+                  }
+                  onClick={fetchRemoteCommodityData}
+                  disabled={loadingRemoteJson}
+                />
+              </Space>
+            }
+            loading={loadingRemoteJson}
+            extra={
+              remoteJson && (
+                <Button
+                  icon={<SaveOutlined />}
+                  type="primary"
+                  loading={saving}
+                  onClick={handleSyncRemoteJson}
+                >
+                  同步到本地
+                </Button>
+              )
+            }
+          >
+            {remoteJson ? (
+              <LotteryTree checkable={false} fullJson={remoteJson} />
+            ) : (
+              <Flex
+                style={{
+                  padding: "32px 0",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Button
+                  icon={<CloudDownloadOutlined />}
+                  onClick={fetchRemoteCommodityData}
+                >
+                  从 Notion 加载
+                </Button>
+              </Flex>
+            )}
+          </Card>
+        </Flex>
+
+        {/* 回到顶部按钮 */}
+        <BackTop visibilityHeight={100}>
+          <Button
+            shape="circle"
+            icon={<UpOutlined />}
+            style={{
+              backgroundColor: "#1890ff",
+              color: "#fff",
+              border: "none",
+            }}
+          />
+        </BackTop>
+      </Content>
+    </Layout>
+  );
+};
+
+export default LotteryContentWithDirHandle;
