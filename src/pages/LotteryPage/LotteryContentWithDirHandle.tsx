@@ -1,22 +1,21 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop, Spin } from "antd";
 import { Content } from "antd/es/layout/layout";
 import LotteryTree from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
-import { useLotteryData } from "./UseLotteryData";  // 引入自定义 hook
+import { useLotteryData } from "./UseLotteryData";
 import {
   CloudDownloadOutlined,
   LoadingOutlined,
   ReloadOutlined,
   SaveOutlined,
   UpOutlined
-} from "@ant-design/icons";  // 引入回到顶部需要的图标
+} from "@ant-design/icons";
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
-import { NOTION_DATABASE_LOTTERY, LOTTERY_TYPES } from "../../services/lottery/lotteryNotionQueries";
+import { NOTION_DATABASE_LOTTERY } from "../../services/lottery/lotteryNotionQueries";
 
 const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
-const PAGE_SIZE = 15; // 每页显示多少个 WORKSHOP_TYPES
 
 const LotteryContentWithDirHandle: React.FC = () => {
   const {
@@ -26,38 +25,59 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
     useContext(WorkshopPageContext);
 
-  const [currentType, setCurrentType] = useState<string>(LOTTERY_TYPES[0]);
+  const [currentTypes, setCurrentTypes] = useState<string[]>([]);
+  const [currentType, setCurrentType] = useState<string | null>(null);
+  const [missingTypes, setMissingTypes] = useState<string[]>([]); // 远端新增数据
   const [localJson, setLocalJson] = useState<{ [key: string]: any } | null>(null);
   const [loadingLocalJson, setLoadingLocalJson] = useState(false);
   const [localFileExists, setLocalFileExists] = useState(false);
   const [remoteJsonMap, setRemoteJsonMap] = useState<{ [key: string]: any }>({});
-  const [remoteJsonLoadingList, setRemoteJsonLoadingList] = useState<string[]>([]);
-  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
+  const [remoteJsonLoading, setRemoteJsonLoading] = useState(true); // 初始化加载状态
   const [saving, setSaving] = useState(false);
 
-  // 分页相关状态
-  const [currentPage, setCurrentPage] = useState<number>(0);
-  const totalPages = Math.ceil(LOTTERY_TYPES.length / PAGE_SIZE);
+  // 🔹 获取 notion.json 本地文件内容并更新 currentTypes
+  const loadLocalCurrent = async () => {
+    try {
+      const hasPermission = await ensurePermission("read");
+      if (!hasPermission || !dirHandle) return;
+      const text = await readFile(`${COMMODITY_PATH}notion.json`);
+      const format: { types: string[] } = JSON.parse(text);
+      
+      setCurrentTypes(format.types);
+      setCurrentType(format.types[0]); // 默认选中第一个
+    } catch (error: any) {
+      messageApi.error("读取 notion.json 文件出错: " + error?.message);
+    }
+  };
 
-  // 获取 Lottery 数据
-  const {
-    fileArray: remoteJsonMapData,
-    refetch,
-  } = useLotteryData(NOTION_DATABASE_LOTTERY);
+  // 获取远端 Lottery 数据
+  const { fileArray: remoteJsonMapData, refetch } = useLotteryData(NOTION_DATABASE_LOTTERY);
 
-  // 切换 tab 时的状态重置
+  // 监听远端数据加载，并更新数据
   useEffect(() => {
-    setLoadingLocalJson(false);
-    setLocalJson(null);
-  }, [currentType]);
+    if (remoteJsonMapData && Object.keys(remoteJsonMapData).length > 0) {
+      setRemoteJsonMap(remoteJsonMapData);
+      setRemoteJsonLoading(false);
+      // 计算远端数据中 `currentTypes` 没有的 key
+      const missingKeys = Object.keys(remoteJsonMapData).filter((key) => !currentTypes.includes(key));
+      setMissingTypes(missingKeys);
+    }
+  }, [remoteJsonMapData, currentTypes]);
 
-  // 加载本地文件
+  // 监听 `dirHandle`，加载 notion.json 并初始化 `currentTypes`
+  useEffect(() => {
+    if (dirHandle) {
+      loadLocalCurrent();
+    }
+  }, [dirHandle]);
+
+  // 加载本地 JSON 文件
   const loadLocalFile = async () => {
+    if (!currentType) return;
     setLoadingLocalJson(true);
     try {
       const hasPermission = await ensurePermission("read");
-      if (!hasPermission) return;
-      if (!dirHandle) return;
+      if (!hasPermission || !dirHandle) return;
       const text = await readFile(`${COMMODITY_PATH}${currentType}.json`);
       setLocalJson(JSON.parse(text));
       setLocalFileExists(true);
@@ -73,139 +93,127 @@ const LotteryContentWithDirHandle: React.FC = () => {
     }
   };
 
+  // 监听 `currentType` 变化，自动加载本地文件
   useEffect(() => {
-    if (dirHandle) {
-      loadLocalFile().then();
+    if (dirHandle && currentType) {
+      loadLocalFile();
     }
-  }, [dirHandle, currentType, ensurePermission, messageApi]);
+  }, [dirHandle, currentType]);
 
-  // 从 Notion 拉取数据
-  const handleLoadRemoteJson = async (type: string, flush: boolean) => {
-    setRemoteJsonLoadingList((prev) => [...prev, type]);
-    messageApi.open({
-      key: "processing",
-      type: "loading",
-      content: `正在从 Notion 加载 ${type} ...`,
-      duration: 0,
-    });
-
-    // 重新获取 Notion 数据
-    if (flush) {
+  // 远端数据加载
+  const handleLoadRemoteJson = async () => {
+    if (!currentType) return;
+    setRemoteJsonLoading(true);
+    try {
       await refetch();
+      messageApi.success(`${currentType} 远端数据加载完成`);
+    } catch (error: any) {
+      messageApi.error("获取远端数据失败: " + error.message);
+    } finally {
+      setRemoteJsonLoading(false);
     }
-
-    setRemoteJsonMap((prev) => ({ ...prev, [type]: remoteJsonMapData[type] }));
-    messageApi.destroy("processing");
-    setRemoteJsonLoadingList((prev) => prev.filter((item) => item !== type));
-    messageApi.success(`${type} 处理完成`);
   };
 
-  // 在 remoteJsonMapData 加载完毕后，主动更新页面并调用 handleLoadRemoteJson
-  useEffect(() => {
-    if (remoteJsonMapData && Object.keys(remoteJsonMapData).length > 0) {
-      handleLoadRemoteJson(currentType, false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteJsonMapData, currentType]);
-
-  // 同步到本地
+  // 同步远端 JSON 到本地
   const handleSyncRemoteJson = async () => {
-    if (!dirHandle) {
-      messageApi.error("请选择你的代码中的 commodity 文件夹");
+    if (!dirHandle || !currentType || !remoteJsonMap[currentType]) {
+      messageApi.error("请先加载 Notion 数据");
+      return;
     }
-    if (localJson && remoteJsonMap[currentType]) {
-      setSaving(true);
-      const remoteJson = remoteJsonMap[currentType];
-      try {
-        await writeFile(
-          `${COMMODITY_PATH}${currentType}.json`,
-          JSON.stringify(remoteJson, null, 4)
-        );
-        setLocalJson(remoteJson); // 刷新本地 JSON
-      } catch (error: any) {
-        messageApi.error("保存文件出错: " + error?.message);
-      } finally {
-        setSaving(false);
+    setSaving(true);
+
+    try {
+      // ✅ 将 JSON 数据写入到 `COMMODITY_PATH/${currentType}.json`
+      await writeFile(
+        `${COMMODITY_PATH}${currentType}.json`,
+        JSON.stringify(remoteJsonMap[currentType], null, 4)
+      );
+
+      setLocalJson(remoteJsonMap[currentType]); // 更新本地 JSON 数据
+      messageApi.success(`"${currentType}" 同步成功！`);
+
+      // ✅ 检查 currentType 是否已经在 currentTypes 中
+      if (!currentTypes.includes(currentType)) {
+        const updatedTypes = [...currentTypes, currentType].sort(); // 按字母排序
+        setCurrentTypes(updatedTypes); // 更新 UI
+
+        // ✅ 更新 `notion.json`
+        const notionFilePath = `${COMMODITY_PATH}notion.json`;
+        const updatedNotionData = JSON.stringify({ types: updatedTypes }, null, 4);
+        await writeFile(notionFilePath, updatedNotionData);
+        messageApi.success(`"${currentType}" 已添加到 notion.json`);
       }
-    } else {
-      messageApi.error("请先加载本地文件");
+    } catch (error: any) {
+      messageApi.error("保存文件出错: " + error?.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  /**
-   * 获取当前分页下的 WorkshopType 列表
-   */
-  const startIndex = currentPage * PAGE_SIZE;
-  const endIndex = startIndex + PAGE_SIZE;
-  const currentPageTypes = LOTTERY_TYPES.slice(startIndex, endIndex);
-
-  /**
-   * 构造 Menu 的 items
-   * 这里在顶部只添加一个“上一页”按钮，在底部只添加一个“下一页”按钮为例。
-   */
+  // 🔹 生成菜单 items（本地的 currentTypes + 远端缺失的 missingTypes）
   const menuItems = [
-    {
-      key: "prev-top",
-      label: "上一页",
-      disabled: currentPage === 0,
-    },
-    ...currentPageTypes.map((value) => ({
-      key: value,
-      label: value,
+    // ✅ 远端新增数据（missingTypes）
+    ...missingTypes.map((type) => ({
+      key: type,
+      label: (
+        <span>
+          <span
+            style={{
+              color: '#66bb6a', // softer green color (light green)
+              fontSize: '12px', // smaller text
+              fontWeight: 'lighter', // thin font
+              fontFamily: 'Arial, sans-serif', // rounded font
+              border: '1px solid #66bb6a', // softer green border
+              borderRadius: '5px', // rounded corners
+              padding: '0 4px', // tight padding to fit the border close to the text
+              marginRight: '4px', // optional: space between "新增" and type text
+            }}
+          >
+            新增
+          </span>
+          {type} {/* 后面的 type 保持默认样式 */}
+        </span>
+      ),
     })),
-    {
-      key: "next-bottom",
-      label: "下一页",
-      disabled: currentPage === totalPages - 1 || totalPages <= 1,
-    },
+  
+    // ✅ 本地已存在的数据（currentTypes）
+    ...currentTypes.map((type) => ({
+      key: type,
+      label: type, // 默认样式
+    })),
   ];
-
-  /**
-   * 点击菜单时的处理
-   */
-  const handleMenuClick = (e: any) => {
-    if (e.key === "prev-top" || e.key === "prev-bottom") {
-      // 上一页
-      setCurrentPage((page) => Math.max(0, page - 1));
-      return;
-    }
-    if (e.key === "next-top" || e.key === "next-bottom") {
-      // 下一页
-      setCurrentPage((page) => Math.min(totalPages - 1, page + 1));
-      return;
-    }
-    // 普通菜单项
-    setCurrentType(e.key);
-  };
-
+  
+  
+  
   return (
     <Layout
-      style={{
-        padding: "15px 0",
-        background: colorBgContainer,
-        borderRadius: borderRadiusLG,
-      }}
-    >
-      <Sider style={{ background: colorBgContainer }} width={200}>
-        <Menu
-          mode="inline"
-          items={menuItems}
-          selectedKeys={[currentType]}
-          onClick={handleMenuClick}
-          style={{ border: "none" }}
-        />
-      </Sider>
+    style={{
+      padding: "15px 0",
+      background: colorBgContainer,
+      borderRadius: borderRadiusLG,
+    }}
+  >
+    <Sider style={{ background: colorBgContainer }} width={400}>
+      <Menu
+        mode="inline"
+        items={menuItems}
+        selectedKeys={currentType ? [currentType] : []}
+        onClick={(e) => setCurrentType(e.key)}
+        style={{ border: "none" }}
+      />
+    </Sider>
       <Content style={{ padding: "0 24px", minHeight: 280 }}>
         <Flex gap={16}>
+          {/* 本地 JSON 数据 */}
           <Card
             style={{ flex: 2, minHeight: "80vh" }}
             title={
               <Space>
-                本地
+                本地 JSON
                 <Button
                   type={"text"}
                   icon={<ReloadOutlined />}
-                  onClick={() => loadLocalFile()}
+                  onClick={loadLocalFile}
                   disabled={loadingLocalJson}
                 />
               </Space>
@@ -215,77 +223,44 @@ const LotteryContentWithDirHandle: React.FC = () => {
             {localFileExists && localJson ? (
               <LotteryTree checkable={false} fullJson={localJson} />
             ) : (
-              <Text type="warning">
-                {`${currentType}.json 未找到或无法读取`}
-              </Text>
+              <Text type="warning">本地 JSON 文件未找到</Text>
             )}
           </Card>
 
+          {/* Notion JSON 数据 */}
           <Card
             style={{ flex: 2, minHeight: "80vh" }}
             title={
               <Space>
-                <span>
-                  Notion
-                  {remoteJsonLoadingList.includes(currentType) && (
-                    <span
-                      style={{
-                        color: "#faad14",
-                        marginLeft: 8,
-                        fontSize: 12,
-                      }}
-                    >
-                      （正在拉取数据中，请耐心等待...）
-                    </span>
-                  )}
-                </span>
+                Notion 数据
                 <Button
                   type="text"
                   icon={
-                    remoteJsonLoadingList.includes(currentType) ? (
+                    remoteJsonLoading ? (
                       <LoadingOutlined style={{ fontSize: 16 }} />
                     ) : (
                       <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
                     )
                   }
-                  onClick={() => handleLoadRemoteJson(currentType, true)}
-                  disabled={remoteJsonLoadingList.includes(currentType)}
+                  onClick={handleLoadRemoteJson}
+                  disabled={remoteJsonLoading}
                 />
               </Space>
             }
-            loading={remoteJsonLoadingList.includes(currentType)}
+            loading={remoteJsonLoading}
             extra={
-              remoteJsonMap[currentType] && (
-                <Button
-                  icon={<SaveOutlined />}
-                  type="primary"
-                  loading={saving}
-                  onClick={handleSyncRemoteJson}
-                >
+              remoteJsonMap[currentType || ""] && (
+                <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={handleSyncRemoteJson}>
                   同步到本地
                 </Button>
               )
             }
           >
-            {remoteJsonMap[currentType] ? (
-              <LotteryTree
-                checkable={false}
-                fullJson={remoteJsonMap[currentType]}
-                checkedKeys={checkedKeys}
-                setCheckedKeys={setCheckedKeys}
-              />
+            {remoteJsonMap[currentType || ""] ? (
+              <LotteryTree checkable={false} fullJson={remoteJsonMap[currentType || ""]} />
             ) : (
-              <Flex
-                style={{
-                  padding: "32px 0",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Button
-                  icon={<CloudDownloadOutlined />}
-                  onClick={() => handleLoadRemoteJson(currentType, true)}
-                >
+              <Flex style={{ padding: "32px 0", justifyContent: "center", alignItems: "center" }}>
+                <Button icon={<CloudDownloadOutlined />} onClick={handleLoadRemoteJson}>
                   从 Notion 加载
                 </Button>
               </Flex>
@@ -293,21 +268,8 @@ const LotteryContentWithDirHandle: React.FC = () => {
           </Card>
         </Flex>
 
-        {/* 
-            一键返回顶部：设置 visibilityHeight = 100（示例值），
-            当页面滚动大于这个距离时就会显示该按钮 
-        */}
         <BackTop visibilityHeight={100}>
-          {/* 自定义按钮样式和图标 */}
-          <Button
-            shape="circle"
-            icon={<UpOutlined />}
-            style={{
-              backgroundColor: "#1890ff",
-              color: "#fff",
-              border: "none",
-            }}
-          />
+          <Button shape="circle" icon={<UpOutlined />} style={{ backgroundColor: "#1890ff", color: "#fff", border: "none" }} />
         </BackTop>
       </Content>
     </Layout>
