@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop, Spin } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop, Checkbox } from "antd";
 import { Content } from "antd/es/layout/layout";
 import {LotteryTree} from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
@@ -24,6 +24,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
     useContext(WorkshopPageContext);
 
+  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);// 用来记录哪些 key 被勾选
   const [currentTypes, setCurrentTypes] = useState<string[]>([]); // Local types
   const [currentType, setCurrentType] = useState<string | null>(null); // Current selected type
   const [missingTypes, setMissingTypes] = useState<string[]>([]); // Missing types from remote
@@ -48,65 +49,73 @@ const LotteryContentWithDirHandle: React.FC = () => {
     }
     return modifiedKeys;
   };
+  // 当复选框状态改变时，更新 checkedKeys
+  const handleCheckboxChange = (key: string, checked: boolean) => {
+    setCheckedKeys((prev) => {
+      if (checked) {
+        // 如果勾选，就把 key 加入数组
+        return [...prev, key];
+      } else {
+        // 如果取消勾选，就从数组移除 key
+        return prev.filter((k) => k !== key);
+      }
+    });
+  };
+
+  // 渲染一个带复选框和 tag 的自定义 label
+  const renderCheckableLabel = (
+    key: string, 
+    tagColor: string, 
+    tagText: string
+  ) => (
+    <Space>
+      <Checkbox
+        checked={checkedKeys.includes(key)}
+        onChange={(e) => handleCheckboxChange(key, e.target.checked)}
+      >
+        <span
+          style={{
+            color: tagColor,
+            fontSize: '12px',
+            fontWeight: 'lighter',
+            fontFamily: 'Arial, sans-serif',
+            border: `1px solid ${tagColor}`,
+            borderRadius: '5px',
+            padding: '0 4px',
+          }}
+        >
+          {tagText}
+        </span>
+      </Checkbox>
+      <span>{key}</span>
+    </Space>
+  );
 
   // 🔹 Generate the menu items with missing and modified types
   const generateMenuItems = () => {
     return [
-      // ✅ 远端新增数据（missingTypes）
+      // ✅ 远端新增数据（missingTypes）: 带 Checkbox
       ...missingTypes.map((type) => ({
         key: type,
-        label: (
-          <span>
-            <span
-              style={{
-                color: '#66bb6a', // softer green color (light green)
-                fontSize: '12px', // smaller text
-                fontWeight: 'lighter', // thin font
-                fontFamily: 'Arial, sans-serif', // rounded font
-                border: '1px solid #66bb6a', // softer green border
-                borderRadius: '5px', // rounded corners
-                padding: '0 4px', // tight padding to fit the border close to the text
-                marginRight: '4px', // optional: space between "新增" and type text
-              }}
-            >
-              新增
-            </span>
-            {type}
-          </span>
-        ),
+        label: renderCheckableLabel(type, '#66bb6a', '新增'),
       })),
 
-      // // ✅ 远端有但本地有差异的 key（modified keys）
+      // ✅ 远端有但本地有差异（modified keys）: 带 Checkbox
       ...modifiedKeys.map((key) => ({
         key,
-        label: (
-          <span>
-            <span
-              style={{
-                color: 'yellow', // Yellow for modified items
-                fontSize: '12px', // Smaller text size
-                fontWeight: 'lighter', // Thin font
-                fontFamily: 'Arial, sans-serif', // Rounded font
-                border: '1px solid yellow', // Yellow border
-                borderRadius: '5px', // Rounded corners
-                padding: '0 4px', // Tight padding to fit the border close to the text
-                marginRight: '4px', // Optional: space between "修改" and key text
-              }}
-            >
-              修改
-            </span>
-            {key} {/* Key with modification */}
-          </span>
-        ),
+        label: renderCheckableLabel(key, 'yellow', '修改'),
       })),
 
-      // ✅ 本地已存在的数据（currentTypes）
-      ...currentTypes.filter(type => !modifiedKeys.includes(type)).map((type) => ({
-        key: type,
-        label: type, // 默认样式
-      })),
+      // ✅ 本地已存在的数据（不加复选框）
+      ...currentTypes
+        .filter(type => !modifiedKeys.includes(type) && !missingTypes.includes(type))
+        .map((type) => ({
+          key: type,
+          label: type, // 默认样式，没有 Checkbox
+        })),
     ];
   };
+
 
   // 🔹 获取 notion.json 本地文件内容并更新 currentTypes
   const loadLocalCurrent = async () => {
@@ -225,37 +234,59 @@ const LotteryContentWithDirHandle: React.FC = () => {
     }
   };
 
-  // 同步远端 JSON 到本地
+  // 同步远端 JSON 到本地（一次性同步所有勾选的 key）
   const handleSyncRemoteJson = async () => {
-    if (!dirHandle || !currentType || !remoteJsonMap[currentType]) {
-      messageApi.error("请先加载 Notion 数据");
+    // 如果没有勾选任何 key，就使用 currentType 作为默认同步对象
+    const keysToSync = checkedKeys.length > 0 ? checkedKeys : currentType ? [currentType] : [];
+
+    if (!dirHandle || keysToSync.length === 0) {
+      messageApi.error("请先选择至少一个要同步的 Key，或加载 Notion 数据");
       return;
     }
+
     setSaving(true);
 
     try {
-      // ✅ 将 JSON 数据写入到 `COMMODITY_PATH/${currentType}.json`
-      await writeFile(
-        `${COMMODITY_PATH}${currentType}.json`,
-        JSON.stringify(remoteJsonMap[currentType], null, 4)
-      );
-      messageApi.success(`"${currentType}" 同步成功！`);
+      // 把最新的 currentTypes、missingTypes 做副本，方便批量更新
+      let newCurrentTypes = [...currentTypes];
+      let newMissingTypes = [...missingTypes];
 
-      // ✅ 检查 currentType 是否已经在 currentTypes 中
-      if (!currentTypes.includes(currentType)) {
-         // 更新侧边栏
-        let updatedTypes = missingTypes.filter(type => type !== currentType);
-        setMissingTypes(updatedTypes);
-        updatedTypes = [...currentTypes, currentType].sort(); // 按字母排序
-        setCurrentTypes(updatedTypes); // 更新 UI
+      // 逐个 key 同步到本地
+      for (const key of keysToSync) {
+        // 如果远端数据里不存在这个 key，跳过
+        if (!remoteJsonMap[key]) continue;
 
-        // ✅ 更新 `notion.json`
-        const notionFilePath = `${COMMODITY_PATH}notion.json`;
-        const updatedNotionData = JSON.stringify({ types: updatedTypes }, null, 4);
-        await writeFile(notionFilePath, updatedNotionData);
-        setCurrentType(currentType);
-        messageApi.success(`"${currentType}" 已添加到 notion.json`);
+        // 1. 把远端数据写到本地
+        await writeFile(
+          `${COMMODITY_PATH}${key}.json`,
+          JSON.stringify(remoteJsonMap[key], null, 4)
+        );
+
+        // 2. 如果此 key 不在 currentTypes 中，需要插入并更新 notion.json
+        if (!newCurrentTypes.includes(key)) {
+          newMissingTypes = newMissingTypes.filter((t) => t !== key);
+          newCurrentTypes.push(key);
+        }
       }
+
+      // 如果我们在循环中新增了 key 到 currentTypes，需要写回 notion.json
+      if (newCurrentTypes.length !== currentTypes.length) {
+        newCurrentTypes.sort(); // 按字母排序
+        const notionFilePath = `${COMMODITY_PATH}notion.json`;
+        const updatedNotionData = JSON.stringify({ types: newCurrentTypes }, null, 4);
+        await writeFile(notionFilePath, updatedNotionData);
+
+        // 更新本地状态
+        setMissingTypes(newMissingTypes);
+        setCurrentTypes(newCurrentTypes);
+        // 如果只同步了一个 key，可以把 currentType 设为它
+        if (keysToSync.length === 1) {
+          setCurrentType(keysToSync[0]);
+        }
+      }
+
+      // 提示成功
+      messageApi.success(`已同步 ${keysToSync.join(", ")} 到本地！`);
     } catch (error: any) {
       messageApi.error("保存文件出错: " + error?.message);
     } finally {
@@ -263,7 +294,14 @@ const LotteryContentWithDirHandle: React.FC = () => {
     }
   };
 
-  const menuItems = useMemo(() => generateMenuItems(), [modifiedKeys, missingTypes, currentTypes, localJson]);
+
+  const menuItems = useMemo(() => generateMenuItems(), [
+    modifiedKeys,
+    missingTypes,
+    currentTypes,
+    localJson,
+    checkedKeys
+  ]);
   
   return (
     <Layout
