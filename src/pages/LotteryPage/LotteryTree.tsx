@@ -1,9 +1,18 @@
 import { Empty, Typography } from "antd";
 import React, { useEffect } from "react";
+import { LotteryConfig, LotteryConfigItem } from "../../services/lottery/lotteryNotionQueries";
 
-const { Text, Paragraph } = Typography;
+export const { Text, Paragraph } = Typography;
 
-const LotteryTree: React.FC<{[key:string]: any}> = ({ checkable, fullJson, differentParts, checkedKeys, setCheckedKeys }) => {
+
+export interface DifferentPart {
+  key: string;
+  mode: 'add' | 'remove' | 'changed';
+  from?: LotteryConfigItem
+  to?: LotteryConfigItem
+}
+
+export const LotteryTree: React.FC<{[key:string]: any}> = ({ checkable, fullJson, differentParts, checkedKeys, setCheckedKeys }) => {
   useEffect(() => {
     if (checkable) {
       setCheckedKeys!(Object.keys(fullJson));
@@ -34,4 +43,3 @@ const LotteryTree: React.FC<{[key:string]: any}> = ({ checkable, fullJson, diffe
     );
 }
 
-export default LotteryTree;
