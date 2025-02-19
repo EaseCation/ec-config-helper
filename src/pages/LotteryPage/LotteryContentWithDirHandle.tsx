@@ -13,6 +13,7 @@ import {
 } from "@ant-design/icons";
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
 import { NOTION_DATABASE_LOTTERY, LotteryConfig, areLotteryConfigsEqual } from "../../services/lottery/lotteryNotionQueries";
+import { key } from "localforage";
 const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
 
@@ -150,7 +151,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
         // 校验两个 LotteryConfig 是否相同
         const isEqual = areLotteryConfigsEqual(remotConfig, localConfig);
         
-        if (!isEqual) {
+        if (!isEqual && !modifiedKeys.includes(key)) {
           // console.log(`${key} 的配置有差异`);
           modifieds.push(key);
         } else {
@@ -158,6 +159,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
         }
       }
     });
+    if(modifieds.length === 0) return;
     setModifiedKeys(modifieds);
   }
 
@@ -218,7 +220,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
     if (dirHandle && currentType) {
       loadLocalFile();
     }
-  }, [dirHandle, currentType, currentTypes]);
+  }, [dirHandle, currentType, currentTypes, modifiedKeys]);
 
   // 远端数据加载
   const handleLoadRemoteJson = async () => {
@@ -237,7 +239,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   // 同步远端 JSON 到本地（一次性同步所有勾选的 key）
   const handleSyncRemoteJson = async () => {
     // 如果没有勾选任何 key，就使用 currentType 作为默认同步对象
-    const keysToSync = checkedKeys.length > 0 ? checkedKeys : currentType ? [currentType] : [];
+    const keysToSync  = checkedKeys.length > 0 ? checkedKeys : currentType ? [currentType] : [];
 
     if (!dirHandle || keysToSync.length === 0) {
       messageApi.error("请先选择至少一个要同步的 Key，或加载 Notion 数据");
@@ -250,6 +252,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
       // 把最新的 currentTypes、missingTypes 做副本，方便批量更新
       let newCurrentTypes = [...currentTypes];
       let newMissingTypes = [...missingTypes];
+      let newModifiedKeys = [...modifiedKeys];
 
       // 逐个 key 同步到本地
       for (const key of keysToSync) {
@@ -267,7 +270,11 @@ const LotteryContentWithDirHandle: React.FC = () => {
           newMissingTypes = newMissingTypes.filter((t) => t !== key);
           newCurrentTypes.push(key);
         }
+        if (newModifiedKeys.includes(key)) {
+          newModifiedKeys = newModifiedKeys.filter((t) => t !== key);
+        }
       }
+
 
       // 如果我们在循环中新增了 key 到 currentTypes，需要写回 notion.json
       if (newCurrentTypes.length !== currentTypes.length) {
@@ -283,8 +290,11 @@ const LotteryContentWithDirHandle: React.FC = () => {
         if (keysToSync.length === 1) {
           setCurrentType(keysToSync[0]);
         }
+      } else if (newModifiedKeys.length !== modifiedKeys.length) {
+        setModifiedKeys(newModifiedKeys);
       }
 
+      setCheckedKeys([]);
       // 提示成功
       messageApi.success(`已同步 ${keysToSync.join(", ")} 到本地！`);
     } catch (error: any) {
@@ -347,33 +357,43 @@ const LotteryContentWithDirHandle: React.FC = () => {
 
           {/* Notion JSON 数据 */}
           <Card
-            style={{ flex: 2, minHeight: "80vh" }}
-            title={
-              <Space>
-                Notion 数据
-                <Button
-                  type="text"
-                  icon={
-                    remoteJsonLoading ? (
-                      <LoadingOutlined style={{ fontSize: 16 }} />
-                    ) : (
-                      <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
-                    )
-                  }
-                  onClick={handleLoadRemoteJson}
-                  disabled={remoteJsonLoading}
-                />
-              </Space>
-            }
-            loading={remoteJsonLoading}
-            extra={
-              remoteJsonMap[currentType || ""] && (
-                <Button icon={<SaveOutlined />} type="primary" loading={saving} onClick={handleSyncRemoteJson}>
-                  同步到本地
-                </Button>
-              )
-            }
-          >
+              style={{ flex: 2, minHeight: "80vh" }}
+              title={
+                <Space>
+                  Notion 数据
+                  <Button
+                    type="text"
+                    icon={
+                      remoteJsonLoading ? (
+                        <LoadingOutlined style={{ fontSize: 16 }} />
+                      ) : (
+                        <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
+                      )
+                    }
+                    onClick={handleLoadRemoteJson}
+                    disabled={remoteJsonLoading}
+                  />
+                </Space>
+              }
+              loading={remoteJsonLoading}
+              extra={
+                remoteJsonMap[currentType || ""] && (
+                  <Button
+                    icon={<SaveOutlined />}
+                    type="primary"
+                    loading={saving}
+                    onClick={handleSyncRemoteJson}
+                    disabled={
+                      // 当 checkedKeys 没有勾选，且 currentType 既不在 missingTypes 也不在 modifiedKeys 时，禁用按钮
+                      checkedKeys.length === 0 &&
+                      (!currentType || (!missingTypes.includes(currentType) && !modifiedKeys.includes(currentType)))
+                    }
+                  >
+                    同步到本地
+                  </Button>
+                )
+              }
+            >
             {remoteJsonMap[currentType || ""] ? (
               <LotteryTree checkable={false} fullJson={remoteJsonMap[currentType || ""]} />
             ) : (
