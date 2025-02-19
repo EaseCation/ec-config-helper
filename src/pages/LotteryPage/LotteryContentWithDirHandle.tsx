@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useMemo } from "react";
 import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop, Checkbox } from "antd";
 import { Content } from "antd/es/layout/layout";
-import {LotteryTree} from "./LotteryTree";
+import {LotteryJsonViewer} from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
 import { useLotteryData } from "./UseLotteryData";
 import {
@@ -12,7 +12,7 @@ import {
   UpOutlined
 } from "@ant-design/icons";
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
-import { NOTION_DATABASE_LOTTERY, LotteryConfig, areLotteryConfigsEqual } from "../../services/lottery/lotteryNotionQueries";
+import { NOTION_DATABASE_LOTTERY, LotteryConfig, areLotteryConfigsEqual, DifferentParts } from "../../services/lottery/lotteryNotionQueries";
 import { key } from "localforage";
 const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
@@ -30,6 +30,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const [currentType, setCurrentType] = useState<string | null>(null); // Current selected type
   const [missingTypes, setMissingTypes] = useState<string[]>([]); // Missing types from remote
   const [modifiedKeys, setModifiedKeys] = useState<string[]>([]); // Local types
+  const [differentParts, setDifferentParts] = useState<{ [key: string]: DifferentParts }>({}); // Local JSON data
   const [localJson, setLocalJson] = useState<{ [key: string]: any }>({}); // Local JSON data
   const [loadingLocalJson, setLoadingLocalJson] = useState(false); // Loading state for local JSON
   const [localFileExists, setLocalFileExists] = useState(false); // Check if local file exists
@@ -151,8 +152,12 @@ const LotteryContentWithDirHandle: React.FC = () => {
         // 校验两个 LotteryConfig 是否相同
         const isEqual = areLotteryConfigsEqual(remotConfig, localConfig);
         
-        if (!isEqual && !modifiedKeys.includes(key)) {
-          // console.log(`${key} 的配置有差异`);
+        setDifferentParts((prev) => ({
+          ...prev,
+          [key]: isEqual,
+        }));
+
+        if (!isEqual.isEqual && !modifiedKeys.includes(key)) {
           modifieds.push(key);
         } else {
           // console.log(`${key} 的配置无差异`);
@@ -286,13 +291,12 @@ const LotteryContentWithDirHandle: React.FC = () => {
         // 更新本地状态
         setMissingTypes(newMissingTypes);
         setCurrentTypes(newCurrentTypes);
-        // 如果只同步了一个 key，可以把 currentType 设为它
-        if (keysToSync.length === 1) {
-          setCurrentType(keysToSync[0]);
-        }
-      } else if (newModifiedKeys.length !== modifiedKeys.length) {
+      }
+      if (newModifiedKeys.length !== modifiedKeys.length) {
         setModifiedKeys(newModifiedKeys);
       }
+      // 如果只同步了一个 key，可以把 currentType 设为它
+      setCurrentType(keysToSync[0]);
 
       setCheckedKeys([]);
       // 提示成功
@@ -332,7 +336,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
     </Sider>
       <Content style={{ padding: "0 24px", minHeight: 280 }}>
         <Flex gap={16}>
-          {/* 本地 JSON 数据 */}
+          {/* 本地 JSON 数据
           <Card
             style={{ flex: 2, minHeight: "80vh" }}
             title={
@@ -349,11 +353,11 @@ const LotteryContentWithDirHandle: React.FC = () => {
             loading={loadingLocalJson}
           >
             {localFileExists && currentType && localJson[currentType] ? (
-              <LotteryTree checkable={false} fullJson={localJson[currentType]} />
+              <LotteryJsonViewer fullJson={localJson[currentType]} differentParts={differentParts[currentType]} />
             ) : (
               <Text type="warning">本地 JSON 文件未找到</Text>
             )}
-          </Card>
+          </Card> */}
 
           {/* Notion JSON 数据 */}
           <Card
@@ -394,8 +398,8 @@ const LotteryContentWithDirHandle: React.FC = () => {
                 )
               }
             >
-            {remoteJsonMap[currentType || ""] ? (
-              <LotteryTree checkable={false} fullJson={remoteJsonMap[currentType || ""]} />
+            { currentType && remoteJsonMap[currentType] ? (
+              <LotteryJsonViewer fullJson={remoteJsonMap[currentType]} differentParts={differentParts[currentType]} />
             ) : (
               <Flex style={{ padding: "32px 0", justifyContent: "center", alignItems: "center" }}>
                 <Button icon={<CloudDownloadOutlined />} onClick={handleLoadRemoteJson}>

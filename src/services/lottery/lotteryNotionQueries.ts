@@ -57,69 +57,56 @@ const areConfigItemsEqual = (item1: LotteryConfigItem, item2: LotteryConfigItem)
   return true; // 如果以上都相等，返回 true
 };
 
+export interface DifferentParts {
+  isEqual: boolean;
+  addedItems: LotteryConfigItem[];
+  deletedItems: LotteryConfigItem[];
+  commonItems: LotteryConfigItem[];
+}
 
-// 校验两个 LotteryConfig 是否相同
-export const areLotteryConfigsEqual = (config1: LotteryConfig, config2: LotteryConfig): boolean => {
-  // 确保 gain 是有效的数组
-  if (!Array.isArray(config1.gain) || !Array.isArray(config2.gain)) return false; // 如果 gain 不是数组，则认为两个 config 不相同
-  // 比较 gain 数组的长度
-  if (config1.gain?.length !== config2.gain?.length) return false;
-  // 遍历 gain 数组并对比每个 item
-  for (let i = 0; i < config1.gain.length; i++) {
-    if (!areConfigItemsEqual(config1.gain[i], config2.gain[i])) {
-      console.log(JSON.stringify(config1.gain[i]));
-      console.log(JSON.stringify(config2.gain[i]));
-      return false;
+export const areLotteryConfigsEqual = (
+  config1: LotteryConfig,
+  config2: LotteryConfig
+): DifferentParts => {
+  const addedItems: LotteryConfigItem[] = [];   // config2 里新增的项
+  const deletedItems: LotteryConfigItem[] = []; // config1 里删除的项
+  const commonItems: LotteryConfigItem[] = [];  // 两者相同的项
+
+  if (!Array.isArray(config1.gain) || !Array.isArray(config2.gain)) {
+    return { isEqual: false, addedItems, deletedItems, commonItems };
+  }
+
+  // 创建 config2 副本用于删除匹配的元素
+  let remainingConfig2 = [...config2.gain];
+
+  // 遍历 config1，逐个匹配 config2 里的元素
+  for (const item1 of config1.gain) {
+    let foundIndex = -1;
+
+    for (let i = 0; i < remainingConfig2.length; i++) {
+      if (areConfigItemsEqual(item1, remainingConfig2[i])) {
+        foundIndex = i;
+        break;
+      }
+    }
+
+    if (foundIndex !== -1) {
+      // 发现相同的项，加入 commonItems，并从 config2 里移除
+      commonItems.push(item1);
+      remainingConfig2.splice(foundIndex, 1);
+    } else {
+      // 没有找到匹配的项，说明 config1 里多了这个 item，加入 deletedItems
+      addedItems.push(item1);
     }
   }
 
-  return true; // 所有 items 都相等
-};
+  // 遍历完 config1 后，config2 里剩下的项即为新增的项
+  deletedItems.push(...remainingConfig2);
 
-/**
- * 对应 PHP中 WORKSHOP_TYPES 的每个 typeId -> filter & sorts
- */
-export const LOTTERY_TYPES: string[] = [
-  "fallback.sgnew",
-  "sub.8",
-  "sgnew",
-  "fallback.act_2025_newyear",
-  "sub.act_2025_newyear",
-  "main.act_2025_newyear",
-  "fallback.act_2024_panda",
-  "sub.act_2024_panda",
-  "main.act_2024_panda",
-  "main.act_2024_idol",
-  "fallback.act_2024_idol",
-  "sub.act_2024_idol",
-  "main.act_2024_joker",
-  "fallback.act_2024_joker",
-  "sub.act_2024_joker",
-  "sw",
-  "fallback.act_2024_newyear",
-  "sub.act_2024_newyear",
-  "main.act_2024_newyear",
-  "sub.3",
-  "sub.5",
-  "main.stone",
-  "sub.7",
-  "sub.rare.4d.suit",
-  "main.diamond",
-  "sub.item.super.ouhuang",
-  "sub.rare.prefix",
-  "main.act_2023_duanwu",
-  "fallback.act_2023_duanwu",
-  "main.gold",
-  "main.iron",
-  "main.wood",
-  "sub.6",
-  "sub.rare.ornament",
-  "sub.inner.gold",
-  "sub.inner.diamond",
-  "sub.rare.zb",
-  "sub.rare.pet",
-  "fallback.credit",
-  "sub.4",
-  "sub.2",
-  "sub.1"
-];
+  return {
+    isEqual: addedItems.length === 0 && deletedItems.length === 0,
+    addedItems,
+    deletedItems,
+    commonItems
+  };
+};
