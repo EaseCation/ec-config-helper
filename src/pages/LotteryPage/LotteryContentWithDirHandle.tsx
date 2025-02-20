@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop, Checkbox } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Tag, theme, BackTop, Checkbox } from "antd";
 import { Content } from "antd/es/layout/layout";
 import {LotteryJsonViewer} from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
@@ -375,6 +375,8 @@ const LotteryContentWithDirHandle: React.FC = () => {
                     onClick={handleLoadRemoteJson}
                     disabled={remoteJsonLoading}
                   />
+                  <Tag color="green">新增</Tag>
+                  <Tag color="red">移除</Tag>
                 </Space>
               }
               loading={remoteJsonLoading}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop } from "antd";
+import { Button, Card, Flex, Layout, Tag, Space, Typography, theme, BackTop } from "antd";
 import { Content } from "antd/es/layout/layout";
 import CommodityTree from "./CommodityTree";
 import { formatCommodity } from '../../services/commodity/commodityService';
@@ -128,7 +128,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
     >
       <Content style={{ padding: "0 24px", minHeight: 280 }}>
         <Flex gap={16}>
-          {/* 本地 JSON 数据 */}
+          {/* 本地 JSON 数据
           <Card
             style={{ flex: 2, minHeight: "80vh" }}
             title={
@@ -149,8 +149,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
             ) : (
               <Text type="warning">本地 JSON 文件未找到</Text>
             )}
-          </Card>
-
+          </Card> */}
           {/* Notion JSON 数据 */}
           <Card
             style={{ flex: 2, minHeight: "80vh" }}
@@ -169,6 +168,9 @@ const LotteryContentWithDirHandle: React.FC = () => {
                   onClick={fetchRemoteCommodityData}
                   disabled={loadingRemoteJson}
                 />
+                <Tag color="green">新增</Tag>
+                <Tag color="red">移除</Tag>
+                <Tag color="blue">修改</Tag>
               </Space>
             }
             loading={loadingRemoteJson}

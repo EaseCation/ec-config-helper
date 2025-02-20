@@ -16,7 +16,7 @@ const getItemStyle = (type?: "added" | "deleted" | "modified" | "common") => {
   if (type === "deleted")
     return { backgroundColor: "rgba(220, 53, 69, 0.2)", borderRadius: "4px", padding: "4px" };
   if (type === "modified")
-    return { backgroundColor: "rgba(255, 193, 7, 0.2)", borderRadius: "4px", padding: "4px" };
+    return { backgroundColor: "rgba(0, 123, 255, 0.2)", borderRadius: "4px", padding: "4px" };
   // Default style for common items
   return { padding: "4px" }; // No background for common items
 };
@@ -32,8 +32,8 @@ const renderValue = (value: any, type?: "added" | "deleted" | "modified" | "comm
       <>
         {"["}
         {value.map((item, index) => (
-          <div key={index} style={{ paddingLeft: 35, ...getItemStyle(item._type || type) }}>
-            {renderValue(item, item._type || type)} {/* use _type if available, otherwise fallback to `type` */}
+          <div key={index} style={{ paddingLeft: 30, ...getItemStyle(item._type || type) }}>
+            {renderValue(item, item._type || type)} {/* use _type if available, otherwise fallback to type */}
             {index < value.length - 1 ? "," : ""}
           </div>
         ))}

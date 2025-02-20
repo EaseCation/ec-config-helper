@@ -30,6 +30,9 @@ export interface DifferentParts {
   }
   
 export const areCommodityTypesEqual = (item1: CommodityType, item2: CommodityType): boolean => {
+  if (item2.exchange?.fallbackExchange?.gain === ".coin:1000") {
+    console.log(JSON.stringify(item2))
+  }
     return (
         item1.typeId === item2.typeId &&
         item1.generic.translateKey === item2.generic.translateKey &&
