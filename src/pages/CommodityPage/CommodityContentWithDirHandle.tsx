@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import { Button, Card, Flex, Layout, Menu, Space, Typography, theme, BackTop } from "antd";
 import { Content } from "antd/es/layout/layout";
-import LotteryTree from "./CommodityTree";
+import CommodityTree from "./CommodityTree";
 import { formatCommodity } from '../../services/commodity/commodityService';
 import {
   CloudDownloadOutlined,
@@ -11,6 +11,7 @@ import {
   UpOutlined
 } from "@ant-design/icons";
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
+import { DifferentParts, compareCommodityData, CommodityData } from "../../services/commodity/compareCommodityData";
 
 const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/commodity/";
@@ -24,10 +25,11 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
     useContext(WorkshopPageContext);
 
-  const [localJson, setLocalJson] = useState<{ [key: string]: any } | null>(null);
+  const [localJson, setLocalJson] = useState<CommodityData>();
   const [loadingLocalJson, setLoadingLocalJson] = useState(false);
   const [localFileExists, setLocalFileExists] = useState(false);
-  const [remoteJson, setRemoteJson] = useState<{ [key: string]: any } | null>(null);
+  const [remoteJson, setRemoteJson] = useState<CommodityData>();
+  const [differentParts, setDifferentParts] = useState<DifferentParts>();
   const [loadingRemoteJson, setLoadingRemoteJson] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -51,6 +53,24 @@ const LotteryContentWithDirHandle: React.FC = () => {
     }
   };
 
+  const compareDataSafely = () => {
+    if (localJson && remoteJson) {
+      // 当 localJson 和 remoteJson 都不为 null 时才执行对比
+      const difference = compareCommodityData(localJson, remoteJson);
+      // 更新差异状态，进行高亮显示
+      setDifferentParts(difference);
+    } else {
+      messageApi.error("数据未加载完全，无法进行对比");
+    }
+  };
+
+  // 调用时：
+  useEffect(() => {
+    if (localJson && remoteJson) {
+      compareDataSafely();
+    }
+  }, [localJson, remoteJson]);
+
   // 🔹 3. 加载本地 JSON 文件
   const loadLocalFile = async () => {
     setLoadingLocalJson(true);
@@ -64,7 +84,6 @@ const LotteryContentWithDirHandle: React.FC = () => {
     } catch (error: any) {
       if (error?.message === "NotFoundError") {
         setLocalFileExists(false);
-        setLocalJson(null);
       } else {
         messageApi.error("读取本地文件出错: " + error?.message);
       }
@@ -126,7 +145,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
             loading={loadingLocalJson}
           >
             {localFileExists && localJson ? (
-              <LotteryTree checkable={false} fullJson={localJson} />
+              <CommodityTree fullJson={localJson} />
             ) : (
               <Text type="warning">本地 JSON 文件未找到</Text>
             )}
@@ -167,7 +186,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
             }
           >
             {remoteJson ? (
-              <LotteryTree checkable={false} fullJson={remoteJson} />
+              <CommodityTree fullJson={remoteJson} differentParts={differentParts} />
             ) : (
               <Flex
                 style={{

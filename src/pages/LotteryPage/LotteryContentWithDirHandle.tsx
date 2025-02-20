@@ -13,8 +13,6 @@ import {
 } from "@ant-design/icons";
 import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
 import { NOTION_DATABASE_LOTTERY, LotteryConfig, areLotteryConfigsEqual, DifferentParts } from "../../services/lottery/lotteryNotionQueries";
-import { key } from "localforage";
-const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
 
 const LotteryContentWithDirHandle: React.FC = () => {
