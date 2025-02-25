@@ -1,9 +1,9 @@
-import { Empty, Space, Tag, Tree, TreeDataNode, Typography } from "antd";
-import React, { ReactNode, useEffect, useState } from "react";
-import { WorkshopCommodityConfig, WorkshopCommodityConfigItem } from "../../types/workshop";
-import { highlightLineDiff } from "../../utils/diffHelper";
+import {Empty, Space, Tag, Tree, TreeDataNode, Typography} from "antd";
+import React, {ReactNode, useEffect, useState} from "react";
+import {WorkshopCommodityConfig, WorkshopCommodityConfigItem} from "../../types/workshop";
+import {highlightLineDiff} from "../../utils/diffHelper";
 
-const { Text, Paragraph } = Typography;
+const {Text, Paragraph} = Typography;
 
 export interface DifferentPart {
   key: string;
@@ -19,6 +19,12 @@ export interface WorkshopTreeProps {
   checkedKeys?: string[];
   setCheckedKeys?: (keys: string[]) => void;
 }
+
+const modePriority: { [key in DifferentPart['mode']]: number } = {
+  add: 0,
+  changed: 1,
+  remove: 2,
+};
 
 const WorkshopTree: React.FC<WorkshopTreeProps> = ({ checkable, fullJson, differentParts, checkedKeys, setCheckedKeys }) => {
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -77,6 +83,7 @@ const WorkshopTree: React.FC<WorkshopTreeProps> = ({ checkable, fullJson, differ
   const treeData: TreeDataNode[] = Object.entries(fullJson.items).map(([key, value]) => {
     return {
       title: renderTreeKeyTitle(key, value),
+      diff: differentParts?.[key],
       key: key,
       disableCheckbox: differentParts === undefined || (differentParts && !differentParts[key]),
       children: [
@@ -86,6 +93,26 @@ const WorkshopTree: React.FC<WorkshopTreeProps> = ({ checkable, fullJson, differ
           checkable: false
         }
       ]
+    }
+  }).sort((a, b) => {
+    const priorityA = a.diff?.mode ? modePriority[a.diff?.mode] : undefined;
+    const priorityB = b.diff?.mode ? modePriority[b.diff?.mode] : undefined;
+
+    if (priorityA !== undefined && priorityB !== undefined) {
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      // 如果 mode 相同，则根据 key 排序
+      return a.key.localeCompare(b.key);
+    } else if (priorityA !== undefined) {
+      // 如果只有 A 的 mode 优先级存在，则 A 排在前面
+      return -1;
+    } else if (priorityB !== undefined) {
+      // 如果只有 B 的 mode 优先级存在，则 B 排在前面
+      return 1;
+    } else {
+      // 如果两个 mode 优先级都不存在，则根据 key 排序
+      return a.key.localeCompare(b.key);
     }
   });
 
