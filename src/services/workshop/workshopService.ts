@@ -122,6 +122,14 @@ export function formatWorkshop(
       itemObj.exchange = exchange;
     }
 
+    // 物品自定义fallback
+    if (row["fallbackExchange"]) {
+      if (!itemObj.exchange) {
+        itemObj.exchange = {};
+      }
+      itemObj.exchange.fallbackExchange = row["fallbackExchange"];
+    }
+
     // gainAnimation
     const gainAnimation = generateGainAnimation(row, category, parts);
     if (gainAnimation) {

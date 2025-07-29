@@ -24,6 +24,7 @@ export interface WorkshopItem {
     "ornamentPart": string | null;
     "category": string | null;
     "idItem": string | null;
+    "fallbackExchange": string | null;
 }
 
 export interface WorkshopCommodityConfig {
@@ -69,21 +70,24 @@ export interface ExtraButton {
     action: Record<string, any>;
 }
 
-export type WorkshopCommodityExchange = {
-    buyExchange: {
-        key: string;
-        spend?: {
-            diamond?: number;
-            coin?: number;
-            exp?: number;
-        }
-        price?: {
-            type: string;
-            currency: string;
-            amount: number;
-        };
-        gain?: string | string[];
+export type ExchangeConfig = {
+    key: string;
+    spend?: {
+        diamond?: number;
+        coin?: number;
+        exp?: number;
+    }
+    price?: {
+        type: string;
+        currency: string;
+        amount: number;
     };
+    gain?: string | string[];
+}
+
+export type WorkshopCommodityExchange = {
+    buyExchange?: string | ExchangeConfig;
+    fallbackExchange?: string | ExchangeConfig;
 }
 
 export type WorkshopCommodityGainAnimation = {

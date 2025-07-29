@@ -31,6 +31,7 @@ export function pageToWorkshopItem(page: NotionPage): WorkshopItem {
     weaponSkinItemId: fm.parseRichText(page.properties['武器皮肤自定义物品ID']),
     access: fm.parseRichText(page.properties['获取方式']),
     accessToDo: fm.parseRichText(page.properties['获取方式配置']),
-    confirmIntroduce: fm.parseRichText(page.properties['购买确认页简介'])
+    confirmIntroduce: fm.parseRichText(page.properties['购买确认页简介']),
+    fallbackExchange: fm.parseRichText(page.properties['fallbackExchange']),
   };
 }
