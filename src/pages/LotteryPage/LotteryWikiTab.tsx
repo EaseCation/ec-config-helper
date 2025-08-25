@@ -6,6 +6,7 @@ import { flatProperty, parseCheckbox, parseRelation } from '../../services/commo
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
 import { buildWikiTables } from '../../services/lottery/wikiFormatter';
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
+import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
 
 const { Panel } = Collapse;
 const { Paragraph } = Typography;
@@ -45,6 +46,16 @@ const LotteryWikiTab: React.FC = () => {
             wikiMap[wiki.exc] = wiki;
           }
         }
+
+        const nameMap = await fetchCommodityNameMap();
+        for (const wiki of Object.values(wikiMap)) {
+          wiki.gain.forEach(item => {
+            if (item.name && nameMap[item.name]) {
+              item.name = nameMap[item.name];
+            }
+          });
+        }
+
         const map = buildWikiTables(wikiMap);
         setTables(map);
       } catch (err) {
