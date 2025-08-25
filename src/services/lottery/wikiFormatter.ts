@@ -108,7 +108,8 @@ export function buildWikiTables(map: Record<string, WikiResult>): Record<string,
   const display: Record<string, DisplayItem> = {};
   for (const [key, item] of Object.entries(map)) {
     if (item.display) {
-      display[item.name] = {
+      const finalDisplayName = item.name;
+      display[finalDisplayName] = {
         fallbackTimes: item.fallbackTimes,
         items: formatWikiSingleGain(map, key)
       };

@@ -1,4 +1,8 @@
-export const NOTION_DATABASE_LOTTERY = '9e151c3d30b14d1bae8dd972d17198c1';
+export const NOTION_DATABASE_LOTTERY =
+  '9e151c3d30b14d1bae8dd972d17198c1';
+
+export const NOTION_DATABASE_LOTTERY_BOX_CONFIG =
+  '7d22b7c4a4be432a9f746af7c24e6cfb';
 
 export interface LotteryCollback {
   type: string;
