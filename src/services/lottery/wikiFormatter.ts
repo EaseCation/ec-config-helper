@@ -89,7 +89,12 @@ function formatWikiChance(display: Record<string, DisplayItem>): Record<string, 
 
 function formatWikiToString(name: string, data: {fallbackTimes: number; items: ChanceItem[]}): string {
   let result = `= ${name} =\n`;
-  result += `抽取 ${data.fallbackTimes} 次后触发抽奖保底，会按照玩家商品拥有情况给予某一个保底奖励（保底商品会在“概率”一列中标注“保底”）。\n`;
+  
+  // 只有当保底次数大于0时才显示保底描述
+  if (data.fallbackTimes > 0) {
+    result += `抽取 ${data.fallbackTimes} 次后触发抽奖保底，会按照玩家商品拥有情况给予某一个保底奖励（保底商品会在"概率"一列中标注"保底"）。\n`;
+  }
+  
   result += '{| class="wikitable sortable"\n!奖励内容\n!奖励数量\n!概率\n';
   for (const item of data.items) {
     result += "|-\n";
