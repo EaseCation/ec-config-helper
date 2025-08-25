@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Collapse, Spin, Button, Typography, message } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
-import { parseCheckbox, parseRelation, parseRollup } from '../../services/commonFormat';
+import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
 import { buildWikiTables } from '../../services/lottery/wikiFormatter';
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
@@ -29,8 +29,8 @@ const LotteryWikiTab: React.FC = () => {
         for (const page of pages) {
           if (parseCheckbox(page.properties['禁用'])) continue;
           const boxId = parseRelation(page.properties['所在抽奖箱']);
-          const id = parseRollup(page.properties['exchange_id']);
-          if (!id) continue;
+          const id = String(flatProperty(page.properties['exchange_id']) || '');
+          if (!boxId || !id) continue;
           const boxes = splitString(boxId);
           for (const box of boxes) {
             if (!grouped[box]) grouped[box] = [];
@@ -40,8 +40,9 @@ const LotteryWikiTab: React.FC = () => {
         const wikiMap: Record<string, WikiResult> = {};
         for (const key in grouped) {
           const formatted = formatLottery(grouped[key]);
-          if (formatted.name) {
-            wikiMap[formatted.name] = formatted.wiki_result;
+          const wiki = formatted.wiki_result;
+          if (wiki.display && wiki.name && wiki.gain.length) {
+            wikiMap[wiki.exc] = wiki;
           }
         }
         const map = buildWikiTables(wikiMap);
@@ -63,7 +64,21 @@ const LotteryWikiTab: React.FC = () => {
   return (
     <Collapse accordion>
       {Object.entries(tables).map(([name, table]) => (
-        <Panel header={name} key={name} extra={<Button size="small" icon={<CopyOutlined />} onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(table); message.success('已复制'); }} />}> 
+        <Panel
+          header={name}
+          key={name}
+          extra={
+            <Button
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(table);
+                message.success('已复制');
+              }}
+            />
+          }
+        >
           <Paragraph>
             <pre style={{ whiteSpace: 'pre-wrap' }}>{table}</pre>
           </Paragraph>
