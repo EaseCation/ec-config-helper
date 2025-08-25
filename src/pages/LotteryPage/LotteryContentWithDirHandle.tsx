@@ -375,8 +375,14 @@ const LotteryContentWithDirHandle: React.FC = () => {
                     onClick={handleLoadRemoteJson}
                     disabled={remoteJsonLoading}
                   />
-                  <Tag color="green">新增</Tag>
-                  <Tag color="red">移除</Tag>
+                  {currentType &&
+                    differentParts[currentType]?.addedItems.length > 0 && (
+                      <Tag color="green">新增</Tag>
+                    )}
+                  {currentType &&
+                    differentParts[currentType]?.deletedItems.length > 0 && (
+                      <Tag color="red">移除</Tag>
+                    )}
                 </Space>
               }
               loading={remoteJsonLoading}
