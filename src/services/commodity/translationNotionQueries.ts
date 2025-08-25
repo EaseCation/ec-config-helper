@@ -1,0 +1,2 @@
+export const NOTION_DATABASE_TRANSLATION =
+  '6bde2c7ff62f4c8aad5bb503eb706164';

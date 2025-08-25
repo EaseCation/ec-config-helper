@@ -3,6 +3,7 @@ import { Button, Card, Flex, Layout, Tag, Space, Typography, theme, BackTop } fr
 import { Content } from "antd/es/layout/layout";
 import CommodityTree from "./CommodityTree";
 import { formatCommodity } from '../../services/commodity/commodityService';
+import { NOTION_DATABASE_COMMODITY } from '../../services/commodity/commodityNotionQueries';
 import {
   CloudDownloadOutlined,
   LoadingOutlined,
@@ -15,7 +16,6 @@ import { DifferentParts, compareCommodityData, CommodityData } from "../../servi
 
 const { Text } = Typography;
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/commodity/";
-const NOTION_DATABASE_COMMODITY = "1959ff1f-c1d4-4754-9014-cd4f3c80c36f";
 
 const LotteryContentWithDirHandle: React.FC = () => {
   const {
