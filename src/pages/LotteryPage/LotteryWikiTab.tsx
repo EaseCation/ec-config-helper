@@ -8,7 +8,6 @@ import { buildWikiTables } from '../../services/lottery/wikiFormatter';
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
 import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
 
-const { Panel } = Collapse;
 const { Paragraph } = Typography;
 
 const splitString = (input: string): string[] => input.split(', ').filter(Boolean);
@@ -16,13 +15,14 @@ const splitString = (input: string): string[] => input.split(', ').filter(Boolea
 const LotteryWikiTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tables, setTables] = useState<Record<string, string>>({});
+  const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
     const load = async () => {
       try {
         const token = getNotionToken();
         if (!token) {
-          message.error('尚未设置 Notion Token');
+          messageApi.error('尚未设置 Notion Token');
           return;
         }
         const pages = await fetchNotionAllPages(NOTION_DATABASE_LOTTERY, {});
@@ -49,7 +49,7 @@ const LotteryWikiTab: React.FC = () => {
 
         const nameMap = await fetchCommodityNameMap();
         for (const wiki of Object.values(wikiMap)) {
-          wiki.gain.forEach(item => {
+          wiki.gain.forEach((item) => {
             if (item.name && nameMap[item.name]) {
               item.name = nameMap[item.name];
             }
@@ -60,7 +60,7 @@ const LotteryWikiTab: React.FC = () => {
         setTables(map);
       } catch (err) {
         console.error(err);
-        message.error('获取 Lottery 数据失败');
+        messageApi.error('获取 Lottery 数据失败');
       } finally {
         setLoading(false);
       }
@@ -72,30 +72,32 @@ const LotteryWikiTab: React.FC = () => {
     return <Spin />;
   }
 
+  const items = Object.entries(tables).map(([name, table]) => ({
+    key: name,
+    label: name,
+    extra: (
+      <Button
+        size="small"
+        icon={<CopyOutlined />}
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(table);
+          messageApi.success('已复制');
+        }}
+      />
+    ),
+    children: (
+      <Paragraph>
+        <pre style={{ whiteSpace: 'pre-wrap' }}>{table}</pre>
+      </Paragraph>
+    ),
+  }));
+
   return (
-    <Collapse accordion>
-      {Object.entries(tables).map(([name, table]) => (
-        <Panel
-          header={name}
-          key={name}
-          extra={
-            <Button
-              size="small"
-              icon={<CopyOutlined />}
-              onClick={(e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(table);
-                message.success('已复制');
-              }}
-            />
-          }
-        >
-          <Paragraph>
-            <pre style={{ whiteSpace: 'pre-wrap' }}>{table}</pre>
-          </Paragraph>
-        </Panel>
-      ))}
-    </Collapse>
+    <>
+      {contextHolder}
+      <Collapse accordion items={items} />
+    </>
   );
 };
 

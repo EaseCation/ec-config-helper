@@ -12,12 +12,14 @@ export async function fetchCommodityNameMap(): Promise<Record<string, string>> {
   const pages: NotionPage[] = await fetchNotionAllPages(NOTION_DATABASE_COMMODITY, {});
   const map: Record<string, string> = {};
   for (const page of pages) {
-    const id = String(flatProperty(page.properties['typeId']) || '');
-    const name = String(
-      flatProperty(page.properties['wikiDisplayName']) ||
-      flatProperty(page.properties['translateKey']) ||
-      ''
-    );
+    const idProp = page.properties['typeId'];
+    const nameProp =
+      page.properties['wikiDisplayName'] || page.properties['translateKey'];
+
+    if (!idProp || !nameProp) continue;
+
+    const id = String(flatProperty(idProp) || '');
+    const name = String(flatProperty(nameProp) || '');
     if (id && name) {
       map[id] = name;
     }
