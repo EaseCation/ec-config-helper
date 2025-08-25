@@ -12,7 +12,7 @@ const DEFAULT_WIKI_RESULT: WikiResult = {
 
 const DEFAULT_RESULT = { error: 'No lottery data' };
 
-interface WikiGainItem {
+export interface WikiGainItem {
   weight: number;
   exc?: string;       // 条件存在的属性
   fallback?: boolean; // 条件存在的属性
@@ -21,7 +21,7 @@ interface WikiGainItem {
 }
 
 // 创建 wikiResult 对象（需先定义类型）
-interface WikiResult {
+export interface WikiResult {
   name: string;
   exc: string;
   display: boolean;
@@ -71,7 +71,7 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
   
   const wikiResult: WikiResult = {
     name: wikiDisplayName || '', // 处理空值情况
-    exc: exchangeId,
+    exc: exchangeRealName,
     display: ifWiki, // 转换为布尔值
     fallbackTimes: whenCallFallback, // 转换为数字
     gain: []
