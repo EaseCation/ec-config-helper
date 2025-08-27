@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload } from 'antd';
-import { CopyOutlined, DownloadOutlined, FileMarkdownOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CopyOutlined, DownloadOutlined, FileMarkdownOutlined, UploadOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
@@ -131,9 +131,13 @@ const LotteryWikiTab: React.FC = () => {
       try {
         const json = JSON.parse(String(e.target?.result || '{}'));
         const parsed = parseLocalLotteryConfig(json);
-        const newMap = { ...uploadedMap, ...parsed };
-        setUploadedMap(newMap);
-        rebuild(notionMap, newMap);
+        setUploadedMap((prev) => {
+          const newMap = { ...prev, ...parsed };
+          if (Object.keys(notionMap).length) {
+            rebuild(notionMap, newMap);
+          }
+          return newMap;
+        });
         messageApi.success('JSON 上传成功');
       } catch (err) {
         messageApi.error('JSON 解析失败');
@@ -213,12 +217,12 @@ const LotteryWikiTab: React.FC = () => {
     <>
       {contextHolder}
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={load}>
-          刷新
-        </Button>
-        <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json">
+        <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
           <Button icon={<UploadOutlined />}>上传 JSON</Button>
         </Upload>
+        <Button icon={<PlayCircleOutlined />} onClick={load}>
+          开始
+        </Button>
         <Button
           icon={<DownloadOutlined />}
           onClick={() => {
