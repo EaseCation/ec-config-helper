@@ -44,6 +44,10 @@ function formatItemData(name: string, data: number): string | number {
   return formatSecondsToReadable(data);
 }
 
+function stripColorCodes(name: string): string {
+  return name.replace(/§./g, '').replace(/\{[^}]+\}/g, '');
+}
+
 // 递归展开所有奖品，计算权重
 function formatWikiSingleGain(
   entire: Record<string, WikiResult>,
@@ -164,6 +168,17 @@ function translateBoxName(
   return wiki.name;
 }
 
+function translateItems(
+  items: ChanceItem[],
+  nameMap: Record<string, string>
+): ChanceItem[] {
+  return items.map((i) => {
+    const rawName = nameMap[i.name] || i.name;
+    const cleanName = i.name.startsWith('prefix') ? stripColorCodes(rawName) : rawName;
+    return { ...i, name: cleanName, data: formatItemData(i.name, Number(i.data)) };
+  });
+}
+
 export function buildWikiTables(
   map: Record<string, WikiResult>,
   nameMap: Record<string, string> = {},
@@ -183,11 +198,7 @@ export function buildWikiTables(
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
     const displayName = translateBoxName(wiki, boxNameMap, nameMap);
-    const translatedItems = data.items.map((i) => ({
-      ...i,
-      name: nameMap[i.name] || i.name,
-      data: formatItemData(i.name, Number(i.data))
-    }));
+    const translatedItems = translateItems(data.items, nameMap);
     result[displayName] = formatWikiToString(displayName, {
       fallbackTimes: data.fallbackTimes,
       items: translatedItems
@@ -215,11 +226,7 @@ export function buildMarkdownTables(
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
     const displayName = translateBoxName(wiki, boxNameMap, nameMap);
-    const translatedItems = data.items.map((i) => ({
-      ...i,
-      name: nameMap[i.name] || i.name,
-      data: formatItemData(i.name, Number(i.data)),
-    }));
+    const translatedItems = translateItems(data.items, nameMap);
     const lines: string[] = [];
     lines.push(`# ${displayName}`);
     lines.push(`> 更新时间：${new Date().toISOString().replace('T', ' ').slice(0, 19)}`);
@@ -267,11 +274,7 @@ export function buildWikiCSVs(
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
     const displayName = translateBoxName(wiki, boxNameMap, nameMap);
-    const translatedItems = data.items.map((i) => ({
-      ...i,
-      name: nameMap[i.name] || i.name,
-      data: formatItemData(i.name, Number(i.data))
-    }));
+    const translatedItems = translateItems(data.items, nameMap);
     const lines: string[] = [];
     if (data.fallbackTimes > 0) {
       lines.push(`${csvEscape('保底次数')},${csvEscape(data.fallbackTimes)}`);
