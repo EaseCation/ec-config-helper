@@ -107,17 +107,14 @@ const nameMap: Record<string, string> = {
 };
 
 // 应用翻译
-wiki.gain.forEach((item) => {
-  if (item.name && nameMap[item.name]) {
-    item.name = nameMap[item.name]; // 英文 → 中文
-  }
-});
-```
+// 获取商品名称和抽奖箱名称映射
+const [nameMap, boxNameMap] = await Promise.all([
+  fetchCommodityNameMap(),
+  fetchLotteryBoxNameMap()
+]);
 
-**抽奖箱名称翻译：**
-```typescript
-// 从 lotteryNameService 获取抽奖箱名称映射
-await translateLotteryBoxNames(wikiMap);
+// 在格式化阶段统一翻译
+const map = buildWikiTables(wikiMap, nameMap, boxNameMap);
 ```
 
 ### 5. Wiki表格格式化阶段

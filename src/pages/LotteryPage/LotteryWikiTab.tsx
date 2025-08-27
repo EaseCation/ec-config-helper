@@ -8,7 +8,6 @@ import { buildWikiTables } from '../../services/lottery/wikiFormatter';
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
 import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
 import { fetchLotteryBoxNameMap } from '../../services/lottery/lotteryNameService';
-import { translateLotteryBoxNames } from '../../services/lottery/lotteryNameService';
 
 const { Paragraph } = Typography;
 
@@ -50,23 +49,12 @@ const LotteryWikiTab: React.FC = () => {
         }
 
         // 获取商品名称映射和抽奖箱名称映射
-        const [nameMap] = await Promise.all([
-          fetchCommodityNameMap()
+        const [nameMap, boxNameMap] = await Promise.all([
+          fetchCommodityNameMap(),
+          fetchLotteryBoxNameMap()
         ]);
 
-        // 应用抽奖箱名称翻译
-        await translateLotteryBoxNames(wikiMap);
-        
-        // 翻译商品名称
-        for (const wiki of Object.values(wikiMap)) {
-          wiki.gain.forEach((item) => {
-            if (item.name && nameMap[item.name]) {
-              item.name = nameMap[item.name];
-            }
-          });
-        }
-
-        const map = buildWikiTables(wikiMap);
+        const map = buildWikiTables(wikiMap, nameMap, boxNameMap);
         setTables(map);
       } catch (err) {
         console.error(err);

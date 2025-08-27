@@ -1,4 +1,4 @@
-import { WikiResult, WikiGainItem } from './lotteryService';
+import { WikiResult } from './lotteryService';
 
 interface FlatItem {
   weight: number;
@@ -104,12 +104,29 @@ function formatWikiToString(name: string, data: {fallbackTimes: number; items: C
   return result;
 }
 
-export function buildWikiTables(map: Record<string, WikiResult>): Record<string, string> {
+function translateBoxName(wiki: WikiResult, boxNameMap: Record<string, string>): string {
+  const rawExc = typeof wiki.exc === 'string' ? wiki.exc : '';
+  const noPrefix = rawExc.replace(/^exc_lottery_/, '');
+  const firstDot = noPrefix.replace('_', '.');
+  const allDot = noPrefix.replace(/_/g, '.');
+  const candidates = [allDot, firstDot, noPrefix, rawExc];
+  for (const key of candidates) {
+    if (boxNameMap[key]) {
+      return boxNameMap[key];
+    }
+  }
+  return wiki.name;
+}
+
+export function buildWikiTables(
+  map: Record<string, WikiResult>,
+  nameMap: Record<string, string> = {},
+  boxNameMap: Record<string, string> = {}
+): Record<string, string> {
   const display: Record<string, DisplayItem> = {};
   for (const [key, item] of Object.entries(map)) {
     if (item.display) {
-      const finalDisplayName = item.name;
-      display[finalDisplayName] = {
+      display[key] = {
         fallbackTimes: item.fallbackTimes,
         items: formatWikiSingleGain(map, key)
       };
@@ -117,8 +134,17 @@ export function buildWikiTables(map: Record<string, WikiResult>): Record<string,
   }
   const withChance = formatWikiChance(display);
   const result: Record<string, string> = {};
-  for (const [name, data] of Object.entries(withChance)) {
-    result[name] = formatWikiToString(name, data);
+  for (const [exc, data] of Object.entries(withChance)) {
+    const wiki = map[exc];
+    const displayName = translateBoxName(wiki, boxNameMap);
+    const translatedItems = data.items.map((i) => ({
+      ...i,
+      name: nameMap[i.name] || i.name
+    }));
+    result[displayName] = formatWikiToString(displayName, {
+      fallbackTimes: data.fallbackTimes,
+      items: translatedItems
+    });
   }
   return result;
 }
