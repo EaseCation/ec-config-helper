@@ -215,6 +215,23 @@ const LotteryWikiTab: React.FC = () => {
         >
           下载全部 CSV
         </Button>
+        <Button
+          icon={<FileMarkdownOutlined />}
+          onClick={() => {
+            const combined = Object.keys(tables)
+              .map((name) => markdowns[name])
+              .filter(Boolean)
+              .join('\n\n');
+            if (combined) {
+              navigator.clipboard.writeText(combined);
+              messageApi.success('已复制全部 Markdown');
+            } else {
+              messageApi.error('Markdown 数据缺失');
+            }
+          }}
+        >
+          复制全部 Markdown
+        </Button>
       </Space>
       <Collapse accordion items={items} />
     </>
