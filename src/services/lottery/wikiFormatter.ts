@@ -9,13 +9,39 @@ interface FlatItem {
 
 interface ChanceItem {
   name: string;
-  data: number;
+  data: string | number;
   chance: string;
 }
 
 interface DisplayItem {
   fallbackTimes: number;
   items: FlatItem[];
+}
+
+const DURATION_PREFIXES = ['prefix', 'ornament.', 'pet.', 'music.', 'zb.', 'sg.'];
+
+function formatSecondsToReadable(seconds: number): string {
+  const units = [
+    { label: '年', value: 365 * 24 * 3600 },
+    { label: '月', value: 30 * 24 * 3600 },
+    { label: '天', value: 24 * 3600 },
+    { label: '小时', value: 3600 },
+    { label: '分钟', value: 60 }
+  ];
+  for (const u of units) {
+    if (seconds >= u.value) {
+      const v = seconds / u.value;
+      return Number.isInteger(v) ? `${v}${u.label}` : `${v.toFixed(2)}${u.label}`;
+    }
+  }
+  return `${seconds}秒`;
+}
+
+function formatItemData(name: string, data: number): string | number {
+  const isDuration = DURATION_PREFIXES.some(p => name.startsWith(p));
+  if (!isDuration) return data;
+  if (data === 0 || data === 1) return '永久';
+  return formatSecondsToReadable(data);
 }
 
 // 递归展开所有奖品，计算权重
@@ -159,7 +185,8 @@ export function buildWikiTables(
     const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
-      name: nameMap[i.name] || i.name
+      name: nameMap[i.name] || i.name,
+      data: formatItemData(i.name, Number(i.data))
     }));
     result[displayName] = formatWikiToString(displayName, {
       fallbackTimes: data.fallbackTimes,
@@ -191,6 +218,7 @@ export function buildMarkdownTables(
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name,
+      data: formatItemData(i.name, Number(i.data)),
     }));
     const lines: string[] = [];
     lines.push(`# ${displayName}`);
@@ -241,7 +269,8 @@ export function buildWikiCSVs(
     const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
-      name: nameMap[i.name] || i.name
+      name: nameMap[i.name] || i.name,
+      data: formatItemData(i.name, Number(i.data))
     }));
     const lines: string[] = [];
     if (data.fallbackTimes > 0) {
