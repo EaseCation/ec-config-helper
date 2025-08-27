@@ -1,5 +1,5 @@
 import { NotionPage } from '../../notion/notionTypes';
-import { flatProperty, parseCheckbox, parseRollup, parseRelation} from '../commonFormat'
+import { flatProperty, parseCheckbox, parseRollup, parseRollupBoolean, parseRelation} from '../commonFormat'
 
 
 const DEFAULT_WIKI_RESULT: WikiResult = {
@@ -48,25 +48,13 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
   const first = pages[0];
   const exchangeId = parseRollup(first.properties.exchange_id);
   const exchangeRealName: string = `exc_lottery_${exchangeId.replace(/\./g, '_')}`;
-  const ifNeedKeyDefult = parseRollup(first.properties['需要钥匙？']);
-  let ifNeedKey;
-  if(ifNeedKeyDefult === '') {
-    ifNeedKey = false;
-  } else {
-    ifNeedKey = JSON.parse(ifNeedKeyDefult);
-  }
+  const ifNeedKey = parseRollupBoolean(first.properties['需要钥匙？']);
 
 
   const whenCallFallback = Number(flatProperty(first.properties.whenCallFallback));
   const exchangeCallFallbackName = `lottery.times.${exchangeId}`;
 
-  const ifWikiCopy = parseRollup(first.properties['展示到wiki？']);
-  let ifWiki;
-  if (ifWikiCopy === '') {
-    ifWiki = false;
-  } else {
-    ifWiki = JSON.parse(ifWikiCopy)
-  }
+  const ifWiki = parseRollupBoolean(first.properties['展示到wiki？']);
   const wikiDisplayName = parseRollup(first.properties['wikiDisplayName']);
   
   const wikiResult: WikiResult = {

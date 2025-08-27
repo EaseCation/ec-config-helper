@@ -204,6 +204,26 @@ export function parseRollup(data: NotionPropertyValue): string {
     .join(', ');
 }
 
+/** rollup checkbox -> 读取 rollup 数组的第一个元素并解析为布尔值 */
+export function parseRollupBoolean(data: NotionPropertyValue): boolean {
+  if (data.type !== 'rollup' || data.rollup.type !== 'array') {
+    throw new NotionPropertyParseError('parseRollupBoolean: Not a rollup array property', data);
+  }
+  const arr = data.rollup.array;
+  if (arr.length === 0) return false;
+  const first = arr[0];
+  if (first.type === 'checkbox') {
+    return (first as any).checkbox as boolean;
+  }
+  // 退化处理：使用 parseRollup 拆解字符串并取首个值
+  const text = parseRollup(data).split(',')[0]?.trim().toLowerCase();
+  if (text === 'true') return true;
+  if (text === 'false') return false;
+  if (text === '1') return true;
+  if (text === '0') return false;
+  return Boolean(text);
+}
+
 /** rich_text -> 拼接 rich_text[].plain_text */
 export function parseRichText(data: NotionPropertyValue): string | null {
   if (data.type !== 'rich_text') {
