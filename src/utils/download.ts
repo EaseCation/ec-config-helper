@@ -27,6 +27,18 @@ export function downloadJson(jsonData: any, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadCSV(csvData: string, fileName: string) {
+  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.endsWith('.csv') ? fileName : `${fileName}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function downloadJsonAsZip(fileArray: { [key: string]: any }, zipFileName: string) {
   // 创建一个 JSZip 实例
   const zip = new JSZip();
