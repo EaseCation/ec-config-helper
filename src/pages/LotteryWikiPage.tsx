@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown } from 'antd';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal } from 'antd';
 import type { MenuProps } from 'antd';
-import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../services/commonFormat';
 import { formatLottery, WikiResult } from '../services/lottery/lotteryService';
@@ -12,6 +12,7 @@ import { fetchLotteryBoxNameMap } from '../services/lottery/lotteryNameService';
 import { parseLanguageConfig, parseKillerMerchandise } from '../services/lottery/extraNameParser';
 import { downloadCSV, downloadCSVAsZip, downloadMarkdown } from '../utils/download';
 import { parseLocalLotteryConfig } from '../services/lottery/configParser';
+import wikiDoc from '../../LotteryWikiTab_工作原理.md?raw';
 
 const { Paragraph, Title, Text } = Typography;
 
@@ -80,6 +81,7 @@ const LotteryWikiPage: React.FC = () => {
   const [stageIndex, setStageIndex] = useState(0);
   const percent = Math.round((stageIndex / (stages.length - 1)) * 100);
   const currentStage = stages[stageIndex];
+  const [infoOpen, setInfoOpen] = useState(false);
   const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
   const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, size: number}>>([]);
@@ -386,8 +388,41 @@ const LotteryWikiPage: React.FC = () => {
   return (
     <div className="responsive-padding">
       {contextHolder}
-      <Title style={{ margin: '8px 0 24px' }}>概率表导出</Title>
-      
+      <Modal
+        open={infoOpen}
+        onCancel={() => setInfoOpen(false)}
+        footer={null}
+        title="LotteryWikiTab 工作原理"
+        width={800}
+      >
+        <div style={{ whiteSpace: 'pre-wrap', maxHeight: '60vh', overflowY: 'auto' }}>
+          <p>
+            JSON 抽奖箱配置指
+            <code style={{ userSelect: 'all' }}>
+              CodeFunCore\CodeFunCore\src\main\resources\net\easecation\codefuncore\lottery\exchange
+            </code>
+            下的文件。
+          </p>
+          <p>语言库指 cfgLanguage 数据库（需导出为 JSON）。</p>
+          <p>
+            密室杀手商品配置指
+            <code style={{ userSelect: 'all' }}>
+              CodeFunCore\CodeFunCore\src\main\resources\net\easecation\codefuncore\unlockupgrade\mm\merchandise.json
+            </code>
+          。
+          </p>
+          <div style={{ borderTop: '1px solid #f0f0f0', margin: '16px 0' }} />
+          {wikiDoc}
+        </div>
+      </Modal>
+      <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0 24px' }}>
+        <Title style={{ margin: 0, flex: 1 }}>概率表导出</Title>
+        <InfoCircleOutlined
+          style={{ fontSize: 20, color: '#1677ff', cursor: 'pointer' }}
+          onClick={() => setInfoOpen(true)}
+        />
+      </div>
+
       {loading ? (
         <div style={{ textAlign: 'center', paddingTop: '2rem' }}>
           <Progress

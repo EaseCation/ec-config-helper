@@ -4,6 +4,21 @@
 
 `LotteryWikiTab.tsx` 是一个复杂的抽奖配置处理组件，它从 Notion 数据库获取抽奖箱配置数据，经过多层转换和计算，最终生成符合 Wiki 语法的表格格式。整个系统支持多层嵌套抽奖箱、保底机制、概率计算等高级功能。
 
+## 配置来源与回退策略
+
+系统允许用户上传多套配置文件并按优先级合并：
+
+1. **本地 JSON 抽奖箱配置**：通过「上传JSON抽奖箱配置」按钮导入，若存在与 Notion 相同的 `exc`，本地配置会覆盖 Notion 数据。
+2. **Notion 数据库**：作为基础配置，在没有本地配置时提供抽奖箱数据。
+
+名称映射同样遵循优先级合并规则：
+
+1. **Notion 获取的商品与抽奖箱名称**：`fetchCommodityNameMap()` 与 `fetchLotteryBoxNameMap()` 返回的映射拥有最高优先级。
+2. **语言库 cfgLanguage 导出**：`parseLanguageConfig()` 解析的语言包用于补全缺失的名称，只在 Notion 未提供时生效。
+3. **密室杀手 merchandise.json**：`parseKillerMerchandise()` 解析的商品名称作为最终兜底来源。
+
+合并过程中始终遵循“不覆盖已有键”的策略，确保高优先级来源的名称不会被低优先级配置替换。
+
 ## 工作流程图
 
 ```
@@ -13,6 +28,24 @@ Notion API → 数据清洗 → 格式化转换 → 名称翻译 → Wiki表格�
 ```
 
 ## 详细工作流程
+
+### 0. 本地配置解析
+
+通过 `parseLocalLotteryConfig()` 解析上传的 JSON 抽奖箱配置。函数会遍历每个 `exc` 下的配置，转换为 `WikiResult` 结构，支持以下字段：
+
+```typescript
+{
+  fallbackTimes: number; // 保底触发次数
+  gain: [
+    { weight, subExchanges | exc, fallback },      // 子抽奖箱
+    { weight, merchandises: ['name:value'] },       // 商品奖励
+    { weight, coin },                               // 金币奖励
+    { weight, exp }                                 // 经验奖励
+  ]
+}
+```
+
+解析结果会与 Notion 数据合并，并在 `rebuild()` 阶段覆盖同名 `exc`。
 
 ### 1. 数据获取阶段
 
@@ -116,6 +149,18 @@ const [nameMap, boxNameMap] = await Promise.all([
 // 在格式化阶段统一翻译
 const map = buildWikiTables(wikiMap, nameMap, boxNameMap);
 ```
+
+#### 4.1 语言库解析
+
+`parseLanguageConfig()` 期望语言库导出的 JSON 为数组形式，遍历每个条目时按 `key` 建立映射，名称字段优先取 `zh`，其次 `zh_TW`，最后回退 `en`。
+
+#### 4.2 密室杀手商品解析
+
+`parseKillerMerchandise()` 针对 `merchandise.json` 的结构进行遍历，将每个对象的 `merchandise` 作为键、`name` 作为值，生成商品名称映射。
+
+#### 4.3 名称合并
+
+`mergeNameMaps()` 负责合并上述映射，策略为：先写入 Notion 名称，再补充语言库名称，最后填充密室杀手名称，确保高优先级来源不被覆盖。
 
 ### 5. Wiki表格格式化阶段
 
