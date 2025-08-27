@@ -28,7 +28,10 @@ export function downloadJson(jsonData: any, fileName: string) {
 }
 
 export function downloadCSV(csvData: string, fileName: string) {
-  const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8' });
+  const BOM = '\uFEFF'; // UTF-8 BOM 让 Excel 识别为 UTF-8
+  const normalized = csvData.replace(/\r?\n/g, '\r\n'); // 统一为 CRLF
+  const blob = new Blob([BOM, normalized], { type: 'text/csv;charset=utf-8;' });
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

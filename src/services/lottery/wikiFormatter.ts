@@ -148,7 +148,13 @@ export function buildWikiTables(
   }
   return result;
 }
-
+function csvEscape(v: string | number): string {
+  const s = String(v ?? '');
+  const needsQuote = /[",\r\n]/.test(s) || s.startsWith('=') || s.startsWith('+') || s.startsWith('-') || s.startsWith('@');
+  const safe = (s.startsWith('=') || s.startsWith('+') || s.startsWith('-') || s.startsWith('@')) ? `'${s}` : s;
+  const escaped = safe.replace(/"/g, '""');
+  return needsQuote ? `"${escaped}"` : escaped;
+}
 
 export function buildWikiCSVs(
   map: Record<string, WikiResult>,
@@ -173,15 +179,19 @@ export function buildWikiCSVs(
       ...i,
       name: nameMap[i.name] || i.name
     }));
-    let csv = '';
+    const lines: string[] = [];
     if (data.fallbackTimes > 0) {
-      csv += `保底次数,${data.fallbackTimes}\n`;
+      lines.push(`${csvEscape('保底次数')},${csvEscape(data.fallbackTimes)}`);
     }
-    csv += '奖励内容,奖励数量,概率\n';
+    lines.push([csvEscape('奖励内容'), csvEscape('奖励数量'), csvEscape('概率')].join(','));
     for (const item of translatedItems) {
-      csv += `${item.name},${item.data},${item.chance}\n`;
+      lines.push([
+        csvEscape(item.name),
+        csvEscape(item.data),
+        csvEscape(item.chance)
+      ].join(','));
     }
-    result[displayName] = csv;
+    result[displayName] = lines.join('\n');
   }
   return result;
 }
