@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload } from 'antd';
-import { CopyOutlined, DownloadOutlined, FileMarkdownOutlined, UploadOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
@@ -216,6 +217,33 @@ const LotteryWikiTab: React.FC = () => {
     return false;
   };
 
+  const handleExportAll: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'csv') {
+      if (Object.keys(csvs).length) {
+        downloadCSVAsZip(csvs, 'lottery_csv');
+        messageApi.success('已下载全部 CSV');
+      } else {
+        messageApi.error('CSV 数据缺失');
+      }
+    } else if (key === 'markdown') {
+      const combined = Object.keys(tables)
+        .map((name) => markdowns[name])
+        .filter(Boolean)
+        .join('\n\n');
+      if (combined) {
+        navigator.clipboard.writeText(combined);
+        messageApi.success('已复制全部 Markdown');
+      } else {
+        messageApi.error('Markdown 数据缺失');
+      }
+    }
+  };
+
+  const exportAllItems: MenuProps['items'] = [
+    { key: 'csv', label: '下载全部 CSV' },
+    { key: 'markdown', label: '复制全部 Markdown' }
+  ];
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '2rem' }}>
@@ -237,19 +265,34 @@ const LotteryWikiTab: React.FC = () => {
           {sum !== undefined && (
             <Tag color={Math.abs(sum - 100) < 0.01 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
           )}
-          <Button
-            size="small"
-            icon={<DownloadOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (csv) {
-                downloadCSV(csv, name);
-                messageApi.success('已下载');
-              } else {
-                messageApi.error('CSV 数据缺失');
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'csv', label: '下载 CSV' },
+                { key: 'markdown', label: '复制 Markdown' }
+              ],
+              onClick: ({ key, domEvent }) => {
+                domEvent.stopPropagation();
+                if (key === 'csv') {
+                  if (csv) {
+                    downloadCSV(csv, name);
+                    messageApi.success('已下载');
+                  } else {
+                    messageApi.error('CSV 数据缺失');
+                  }
+                } else if (key === 'markdown') {
+                  if (md) {
+                    navigator.clipboard.writeText(md);
+                    messageApi.success('Markdown 已复制');
+                  } else {
+                    messageApi.error('Markdown 数据缺失');
+                  }
+                }
               }
             }}
-          />
+          >
+            <Button size="small" icon={<ExportOutlined />} onClick={(e) => e.stopPropagation()} />
+          </Dropdown>
           <Button
             size="small"
             icon={<CopyOutlined />}
@@ -257,19 +300,6 @@ const LotteryWikiTab: React.FC = () => {
               e.stopPropagation();
               navigator.clipboard.writeText(table);
               messageApi.success('已复制');
-            }}
-          />
-          <Button
-            size="small"
-            icon={<FileMarkdownOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (md) {
-                navigator.clipboard.writeText(md);
-                messageApi.success('Markdown 已复制');
-              } else {
-                messageApi.error('Markdown 数据缺失');
-              }
             }}
           />
         </Space>
@@ -286,48 +316,30 @@ const LotteryWikiTab: React.FC = () => {
     <>
       {contextHolder}
       <Space style={{ marginBottom: 16 }}>
-        <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
-          <Button icon={<UploadOutlined />}>上传 JSON</Button>
-        </Upload>
-        <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" multiple>
-          <Button icon={<UploadOutlined />}>上传语言配置</Button>
-        </Upload>
-        <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json" multiple>
-          <Button icon={<UploadOutlined />}>上传密室杀手商品</Button>
-        </Upload>
+        <Space>
+          <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
+            <Button icon={<UploadOutlined />}>上传 JSON</Button>
+          </Upload>
+          {Object.keys(uploadedMap).length > 0 && <Tag color="blue">已上传</Tag>}
+        </Space>
+        <Space>
+          <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" multiple>
+            <Button icon={<UploadOutlined />}>上传语言配置</Button>
+          </Upload>
+          {Object.keys(langMap).length > 0 && <Tag color="blue">已上传</Tag>}
+        </Space>
+        <Space>
+          <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json" multiple>
+            <Button icon={<UploadOutlined />}>上传密室杀手商品</Button>
+          </Upload>
+          {Object.keys(killerMap).length > 0 && <Tag color="blue">已上传</Tag>}
+        </Space>
         <Button icon={<PlayCircleOutlined />} onClick={load}>
           开始
         </Button>
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={() => {
-            if (Object.keys(csvs).length) {
-              downloadCSVAsZip(csvs, 'lottery_csv');
-              messageApi.success('已下载全部 CSV');
-            } else {
-              messageApi.error('CSV 数据缺失');
-            }
-          }}
-        >
-          下载全部 CSV
-        </Button>
-        <Button
-          icon={<FileMarkdownOutlined />}
-          onClick={() => {
-            const combined = Object.keys(tables)
-              .map((name) => markdowns[name])
-              .filter(Boolean)
-              .join('\n\n');
-            if (combined) {
-              navigator.clipboard.writeText(combined);
-              messageApi.success('已复制全部 Markdown');
-            } else {
-              messageApi.error('Markdown 数据缺失');
-            }
-          }}
-        >
-          复制全部 Markdown
-        </Button>
+        <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
+          <Button icon={<ExportOutlined />}>导出</Button>
+        </Dropdown>
       </Space>
       <Collapse accordion items={items} />
     </>
