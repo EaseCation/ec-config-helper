@@ -81,14 +81,24 @@ const CommodityTree: React.FC<CommodityTreeProps> = ({ fullJson, differentParts 
   // 🔹 格式化特定商品的 gain 字段，将秒数转换为可读时间
   const prefixes = ["prefix", "ornament.", "pet.", "music.", "zb."];
   processedJson.types.forEach((item: any) => {
-    const gain = item?.exchange?.fallbackExchange?.gain;
-    if (gain && typeof gain === "string") {
-      const [id, value] = gain.split(":");
+    const fallback = item?.exchange?.fallbackExchange;
+    const gainStr =
+      typeof fallback === "string"
+        ? fallback
+        : typeof fallback?.gain === "string"
+        ? fallback.gain
+        : undefined;
+    if (gainStr) {
+      const [id, value] = gainStr.split(":");
       const seconds = Number(value);
       if (!Number.isNaN(seconds) && prefixes.some((p) => id.startsWith(p))) {
         const human = formatDuration(seconds);
-        item.exchange.fallbackExchange.gain =
-          human === "永久" ? `${id}:${human}` : `${id}:${seconds}(${human})`;
+        const formatted = `${id}:${human}`;
+        if (typeof fallback === "string") {
+          item.exchange.fallbackExchange = formatted;
+        } else {
+          item.exchange.fallbackExchange.gain = formatted;
+        }
       }
     }
   });
