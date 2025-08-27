@@ -2,30 +2,84 @@ import React, { useState } from 'react';
 import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
-import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
-import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
-import { buildWikiTables, buildWikiCSVs, buildMarkdownTables } from '../../services/lottery/wikiFormatter';
-import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
-import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
-import { fetchLotteryBoxNameMap } from '../../services/lottery/lotteryNameService';
-import { parseLanguageConfig, parseKillerMerchandise } from '../../services/lottery/extraNameParser';
-import { downloadCSV, downloadCSVAsZip } from '../../utils/download';
-import { parseLocalLotteryConfig } from '../../services/lottery/configParser';
+import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
+import { flatProperty, parseCheckbox, parseRelation } from '../services/commonFormat';
+import { formatLottery, WikiResult } from '../services/lottery/lotteryService';
+import { buildWikiTables, buildWikiCSVs, buildMarkdownTables } from '../services/lottery/wikiFormatter';
+import { NOTION_DATABASE_LOTTERY } from '../services/lottery/lotteryNotionQueries';
+import { fetchCommodityNameMap } from '../services/commodity/commodityNameService';
+import { fetchLotteryBoxNameMap } from '../services/lottery/lotteryNameService';
+import { parseLanguageConfig, parseKillerMerchandise } from '../services/lottery/extraNameParser';
+import { downloadCSV, downloadCSVAsZip, downloadMarkdown } from '../utils/download';
+import { parseLocalLotteryConfig } from '../services/lottery/configParser';
 
-const { Paragraph } = Typography;
+const { Paragraph, Title, Text } = Typography;
 
 const splitString = (input: string): string[] => input.split(', ').filter(Boolean);
 
-const LotteryWikiTab: React.FC = () => {
+const stages = ['初始化','检查 Notion Token','获取 Lottery 页面','解析 Lottery 数据','获取名称映射','构建 Wiki 数据','完成'];
+
+const renderMarkdown = (md: string) => {
+  const lines = md.split(/\r?\n/);
+  const elements: React.ReactNode[] = [];
+  let idx = 0;
+  if (lines[idx]?.startsWith('# ')) {
+    elements.push(<Title level={4} key="title">{lines[idx].replace(/^# /, '')}</Title>);
+    idx++;
+  }
+  if (lines[idx]?.startsWith('>')) {
+    elements.push(<Text type="secondary" key="time">{lines[idx].replace(/^>\s*/, '')}</Text>);
+    idx++;
+  }
+  if (lines[idx] === '') idx++;
+  if (lines[idx]?.startsWith('抽取')) {
+    elements.push(<Paragraph key="desc">{lines[idx]}</Paragraph>);
+    idx += 2; // skip description and blank line
+  }
+  if (lines[idx]?.startsWith('|')) {
+    const header = lines[idx].split('|').slice(1, -1).map(s => s.trim());
+    idx += 2; // skip header and separator
+    const rows: string[][] = [];
+    for (; idx < lines.length; idx++) {
+      const row = lines[idx];
+      if (!row.trim()) continue;
+      const cols = row.split('|').slice(1, -1).map(s => s.trim());
+      rows.push(cols);
+    }
+    elements.push(
+      <table key="table" style={{ borderCollapse: 'collapse', marginTop: 8 }}>
+        <thead>
+          <tr>
+            {header.map((h, i) => (
+              <th key={i} style={{ border: '1px solid #ddd', padding: '4px' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              {r.map((c, j) => (
+                <td key={j} style={{ border: '1px solid #ddd', padding: '4px' }}>{c}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+  return <>{elements}</>;
+};
+
+const LotteryWikiPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [tables, setTables] = useState<Record<string, string>>({});
   const [csvs, setCsvs] = useState<Record<string, string>>({});
   const [markdowns, setMarkdowns] = useState<Record<string, string>>({});
   const [probabilitySums, setProbabilitySums] = useState<Record<string, number>>({});
   const [messageApi, contextHolder] = message.useMessage();
-  const [percent, setPercent] = useState(0);
-  const [stage, setStage] = useState('初始化');
+  const [stageIndex, setStageIndex] = useState(0);
+  const percent = Math.round((stageIndex / (stages.length - 1)) * 100);
+  const currentStage = stages[stageIndex];
   const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
   const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, size: number}>>([]);
@@ -91,18 +145,15 @@ const LotteryWikiTab: React.FC = () => {
   const load = async () => {
     try {
       setLoading(true);
-      setStage('检查 Notion Token');
-      setPercent(10);
+      setStageIndex(1);
       const token = getNotionToken();
       if (!token) {
         messageApi.error('尚未设置 Notion Token');
         return;
       }
-      setStage('获取 Lottery 页面');
-      setPercent(30);
+      setStageIndex(2);
       const pages = await fetchNotionAllPages(NOTION_DATABASE_LOTTERY, {});
-      setStage('解析 Lottery 数据');
-      setPercent(50);
+      setStageIndex(3);
       const grouped: Record<string, any[]> = {};
       for (const page of pages) {
         if (parseCheckbox(page.properties['禁用'])) continue;
@@ -124,8 +175,7 @@ const LotteryWikiTab: React.FC = () => {
         }
       }
 
-      setStage('获取名称映射');
-      setPercent(70);
+      setStageIndex(4);
       const [nMap, bMap] = await Promise.all([
         fetchCommodityNameMap(),
         fetchLotteryBoxNameMap()
@@ -135,17 +185,15 @@ const LotteryWikiTab: React.FC = () => {
       setNameMap(mergedNameMap);
       setBoxNameMap(bMap);
 
-      setStage('构建 Wiki 数据');
-      setPercent(90);
+      setStageIndex(5);
       setNotionMap(wikiMap);
 
       rebuild(wikiMap, uploadedMap, mergedNameMap, bMap);
-      setPercent(100);
+      setStageIndex(6);
     } catch (err) {
       console.error(err);
       messageApi.error('获取 Lottery 数据失败');
     } finally {
-      setStage('完成');
       setLoading(false);
     }
   };
@@ -239,7 +287,7 @@ const LotteryWikiTab: React.FC = () => {
       } else {
         messageApi.error('CSV 数据缺失');
       }
-    } else if (key === 'markdown') {
+    } else if (key === 'markdown-copy') {
       const combined = Object.keys(tables)
         .map((name) => markdowns[name])
         .filter(Boolean)
@@ -250,22 +298,25 @@ const LotteryWikiTab: React.FC = () => {
       } else {
         messageApi.error('Markdown 数据缺失');
       }
+    } else if (key === 'markdown-download') {
+      const combined = Object.keys(tables)
+        .map((name) => markdowns[name])
+        .filter(Boolean)
+        .join('\n\n');
+      if (combined) {
+        downloadMarkdown(combined, 'lottery_markdown');
+        messageApi.success('已下载全部 Markdown');
+      } else {
+        messageApi.error('Markdown 数据缺失');
+      }
     }
   };
 
   const exportAllItems: MenuProps['items'] = [
     { key: 'csv', label: '下载全部 CSV' },
-    { key: 'markdown', label: '复制全部 Markdown' }
+    { key: 'markdown-copy', label: '复制全部 Markdown' },
+    { key: 'markdown-download', label: '下载全部 Markdown' }
   ];
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '2rem' }}>
-        <Progress percent={percent} status={percent === 100 ? 'success' : 'active'} />
-        <div style={{ marginTop: 16 }}>{stage}</div>
-      </div>
-    );
-  }
 
   const items = Object.entries(tables).map(([name, table]) => {
     const csv = csvs[name];
@@ -277,13 +328,14 @@ const LotteryWikiTab: React.FC = () => {
       extra: (
         <Space>
           {sum !== undefined && (
-            <Tag color={Math.abs(sum - 100) < 0.01 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
+            <Tag color={sum >= 99 && sum <= 101 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
           )}
           <Dropdown
             menu={{
               items: [
                 { key: 'csv', label: '下载 CSV' },
-                { key: 'markdown', label: '复制 Markdown' }
+                { key: 'markdown-copy', label: '复制 Markdown' },
+                { key: 'markdown-download', label: '下载 Markdown' }
               ],
               onClick: ({ key, domEvent }) => {
                 domEvent.stopPropagation();
@@ -294,10 +346,17 @@ const LotteryWikiTab: React.FC = () => {
                   } else {
                     messageApi.error('CSV 数据缺失');
                   }
-                } else if (key === 'markdown') {
+                } else if (key === 'markdown-copy') {
                   if (md) {
                     navigator.clipboard.writeText(md);
                     messageApi.success('Markdown 已复制');
+                  } else {
+                    messageApi.error('Markdown 数据缺失');
+                  }
+                } else if (key === 'markdown-download') {
+                  if (md) {
+                    downloadMarkdown(md, name);
+                    messageApi.success('Markdown 已下载');
                   } else {
                     messageApi.error('Markdown 数据缺失');
                   }
@@ -319,69 +378,81 @@ const LotteryWikiTab: React.FC = () => {
         </Space>
       ),
       children: (
-        <Paragraph>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{table}</pre>
-        </Paragraph>
+        <div>{renderMarkdown(md || '')}</div>
       ),
     };
   });
 
   return (
-    <>
+    <div className="responsive-padding">
       {contextHolder}
-      <Space style={{ marginBottom: 16 }} direction="vertical" size="small">
-        <Space>
-          <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
-            <Button 
-              icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
-              type={uploadedFiles.length > 0 ? "primary" : "default"}
-            >
-              {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
-            </Button>
-          </Upload>
-          
-          <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
-            <Button 
-              icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-              type={langFile ? "primary" : "default"}
-            >
-              {langFile ? langFile.name : '上传语言配置'}
-            </Button>
-          </Upload>
-          
-          <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
-            <Button 
-              icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-              type={killerFile ? "primary" : "default"}
-            >
-              {killerFile ? killerFile.name : '上传密室杀手商品配置'}
-            </Button>
-          </Upload>
-          
-          <Button icon={<PlayCircleOutlined />} onClick={load}>
-            开始
-          </Button>
-          <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
-            <Button icon={<ExportOutlined />}>导出</Button>
-          </Dropdown>
-        </Space>
+      <Title style={{ margin: '8px 0 24px' }}>概率表导出</Title>
+      
+      {loading ? (
+        <div style={{ textAlign: 'center', paddingTop: '2rem' }}>
+          <Progress
+            percent={percent}
+            status={stageIndex === stages.length - 1 ? 'success' : 'active'}
+            strokeColor={{ from: '#108ee9', to: '#87d068' }}
+          />
+          <div style={{ marginTop: 16 }}>{currentStage}</div>
+        </div>
+      ) : (
+        <>
+          <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
+            <Space wrap size="small">
+              <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
+                <Button
+                  icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={uploadedFiles.length > 0 ? 'primary' : 'default'}
+                >
+                  {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+                </Button>
+              </Upload>
 
-        {/* 显示已上传的JSON文件名 */}
-        {uploadedFiles.length > 0 && (
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            已上传的抽奖箱配置文件：
-            {uploadedFiles.map((file, index) => (
-              <span key={index} style={{ marginRight: '8px' }}>
-                {file.name}
-              </span>
-            ))}
-          </div>
-        )}
-      </Space>
-      {items.length > 0 && <Collapse accordion items={items} />}
-    </>
+              <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
+                <Button
+                  icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={langFile ? 'primary' : 'default'}
+                >
+                  {langFile ? langFile.name : '上传语言配置'}
+                </Button>
+              </Upload>
+
+              <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
+                <Button
+                  icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={killerFile ? 'primary' : 'default'}
+                >
+                  {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+                </Button>
+              </Upload>
+
+              <Button type="primary" icon={<PlayCircleOutlined />} onClick={load}>
+                开始
+              </Button>
+              <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
+                <Button icon={<ExportOutlined />}>导出</Button>
+              </Dropdown>
+            </Space>
+
+            {uploadedFiles.length > 0 && (
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                已上传的抽奖箱配置文件：
+                {uploadedFiles.map((file, index) => (
+                  <span key={index} style={{ marginRight: '8px' }}>
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Space>
+          {items.length > 0 && <Collapse accordion items={items} />}
+        </>
+      )}
+    </div>
   );
 };
 
-export default LotteryWikiTab;
+export default LotteryWikiPage;
 

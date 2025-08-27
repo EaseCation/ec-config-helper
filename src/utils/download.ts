@@ -42,6 +42,18 @@ export function downloadCSV(csvData: string, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadMarkdown(mdData: string, fileName: string) {
+  const blob = new Blob([mdData], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export function downloadCSVAsZip(fileArray: Record<string, string>, zipFileName: string) {
   const zip = new JSZip();
 
