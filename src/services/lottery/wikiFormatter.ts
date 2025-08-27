@@ -108,7 +108,11 @@ function formatWikiToString(name: string, data: {fallbackTimes: number; items: C
   return result;
 }
 
-function translateBoxName(wiki: WikiResult, boxNameMap: Record<string, string>): string {
+function translateBoxName(
+  wiki: WikiResult,
+  boxNameMap: Record<string, string>,
+  langMap: Record<string, string> = {},
+): string {
   const rawExc = typeof wiki.exc === 'string' ? wiki.exc : '';
   const noPrefix = rawExc.replace(/^exc_lottery_/, '');
   const firstDot = noPrefix.replace('_', '.');
@@ -118,6 +122,10 @@ function translateBoxName(wiki: WikiResult, boxNameMap: Record<string, string>):
     if (boxNameMap[key]) {
       return boxNameMap[key];
     }
+  }
+  const langKey = `lobby.lottery.${noPrefix.replace(/_/g, '-')}`;
+  if (langMap[langKey]) {
+    return langMap[langKey];
   }
   return wiki.name;
 }
@@ -140,7 +148,7 @@ export function buildWikiTables(
   const result: Record<string, string> = {};
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
-    const displayName = translateBoxName(wiki, boxNameMap);
+    const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name
@@ -171,7 +179,7 @@ export function buildMarkdownTables(
   const result: Record<string, string> = {};
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
-    const displayName = translateBoxName(wiki, boxNameMap);
+    const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name,
@@ -221,7 +229,7 @@ export function buildWikiCSVs(
   const result: Record<string, string> = {};
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
-    const displayName = translateBoxName(wiki, boxNameMap);
+    const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name
