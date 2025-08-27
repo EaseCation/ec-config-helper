@@ -8,6 +8,7 @@ import { buildWikiTables, buildWikiCSVs, buildMarkdownTables } from '../../servi
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
 import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
 import { fetchLotteryBoxNameMap } from '../../services/lottery/lotteryNameService';
+import { parseLanguageConfig, parseKillerMerchandise } from '../../services/lottery/extraNameParser';
 import { downloadCSV, downloadCSVAsZip } from '../../utils/download';
 import { parseLocalLotteryConfig } from '../../services/lottery/configParser';
 
@@ -27,7 +28,25 @@ const LotteryWikiTab: React.FC = () => {
   const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
   const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
   const [nameMap, setNameMap] = useState<Record<string, string>>({});
+  const [notionNameMap, setNotionNameMap] = useState<Record<string, string>>({});
   const [boxNameMap, setBoxNameMap] = useState<Record<string, string>>({});
+  const [langMap, setLangMap] = useState<Record<string, string>>({});
+  const [killerMap, setKillerMap] = useState<Record<string, string>>({});
+
+  const mergeNameMaps = (
+    nMap: Record<string, string>,
+    lMap: Record<string, string>,
+    kMap: Record<string, string>
+  ) => {
+    const merged: Record<string, string> = { ...nMap };
+    for (const [k, v] of Object.entries(lMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    for (const [k, v] of Object.entries(kMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    return merged;
+  };
 
   const rebuild = (
     nMap: Record<string, WikiResult>,
@@ -107,14 +126,16 @@ const LotteryWikiTab: React.FC = () => {
         fetchCommodityNameMap(),
         fetchLotteryBoxNameMap()
       ]);
-      setNameMap(nMap);
+      setNotionNameMap(nMap);
+      const mergedNameMap = mergeNameMaps(nMap, langMap, killerMap);
+      setNameMap(mergedNameMap);
       setBoxNameMap(bMap);
 
       setStage('构建 Wiki 数据');
       setPercent(90);
       setNotionMap(wikiMap);
 
-      rebuild(wikiMap, uploadedMap, nMap, bMap);
+      rebuild(wikiMap, uploadedMap, mergedNameMap, bMap);
       setPercent(100);
     } catch (err) {
       console.error(err);
@@ -141,6 +162,54 @@ const LotteryWikiTab: React.FC = () => {
         messageApi.success('JSON 上传成功');
       } catch (err) {
         messageApi.error('JSON 解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleLangUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseLanguageConfig(json);
+        setLangMap((prev) => {
+          const newMap = { ...prev, ...parsed };
+          const merged = mergeNameMaps(notionNameMap, newMap, killerMap);
+          setNameMap(merged);
+          if (Object.keys(notionMap).length) {
+            rebuild(notionMap, uploadedMap, merged, boxNameMap);
+          }
+          return newMap;
+        });
+        messageApi.success('语言配置 JSON 上传成功');
+      } catch (err) {
+        messageApi.error('语言配置解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleKillerUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseKillerMerchandise(json);
+        setKillerMap((prev) => {
+          const newMap = { ...prev, ...parsed };
+          const merged = mergeNameMaps(notionNameMap, langMap, newMap);
+          setNameMap(merged);
+          if (Object.keys(notionMap).length) {
+            rebuild(notionMap, uploadedMap, merged, boxNameMap);
+          }
+          return newMap;
+        });
+        messageApi.success('密室杀手商品 JSON 上传成功');
+      } catch (err) {
+        messageApi.error('密室杀手商品解析失败');
       }
     };
     reader.readAsText(file);
@@ -219,6 +288,12 @@ const LotteryWikiTab: React.FC = () => {
       <Space style={{ marginBottom: 16 }}>
         <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
           <Button icon={<UploadOutlined />}>上传 JSON</Button>
+        </Upload>
+        <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" multiple>
+          <Button icon={<UploadOutlined />}>上传语言配置</Button>
+        </Upload>
+        <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json" multiple>
+          <Button icon={<UploadOutlined />}>上传密室杀手商品</Button>
         </Upload>
         <Button icon={<PlayCircleOutlined />} onClick={load}>
           开始
