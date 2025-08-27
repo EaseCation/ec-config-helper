@@ -28,12 +28,9 @@ export async function fetchCommodityNameMap(): Promise<Record<string, string>> {
     }
   }
   
-  // 添加测试输出，显示映射结果统计
-  console.log(`[商品名称服务] 成功映射 ${Object.keys(map).length} 个商品`);
   if (Object.keys(map).length > 0) {
     const sampleId = Object.keys(map)[0];
     const sampleName = map[sampleId];
-    console.log(`[商品名称服务] 示例映射: ${sampleId} -> ${sampleName}`);
   }
   
   return map;

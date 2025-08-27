@@ -50,11 +50,18 @@ const LotteryWikiTab: React.FC = () => {
           }
         }
         const wikiMap: Record<string, WikiResult> = {};
+        const hiddenLotteries: string[] = []; // 记录被隐藏的抽奖箱
+
         for (const key in grouped) {
           const formatted = formatLottery(grouped[key]);
           const wiki = formatted.wiki_result;
-          if (wiki.display && wiki.name && wiki.gain.length) {
+
+          // 所有抽奖箱都参与Wiki表格构建，但记录哪些应该被隐藏
+          if (wiki.name && wiki.gain.length) {
             wikiMap[wiki.exc] = wiki;
+            if (!wiki.display) {
+              hiddenLotteries.push(wiki.exc);
+            }
           }
         }
 
@@ -70,8 +77,21 @@ const LotteryWikiTab: React.FC = () => {
         setPercent(90);
         const map = buildWikiTables(wikiMap, nameMap, boxNameMap);
         const csvMap = buildWikiCSVs(wikiMap, nameMap, boxNameMap);
-        setTables(map);
-        setCsvs(csvMap);
+
+        // 根据hiddenLotteries过滤显示结果
+        const filteredMap: Record<string, string> = {};
+        const filteredCsvMap: Record<string, string> = {};
+
+        for (const [key, value] of Object.entries(map)) {
+          if (!hiddenLotteries.includes(key)) {
+            filteredMap[key] = value;
+            if (csvMap[key]) {
+              filteredCsvMap[key] = csvMap[key];
+            }
+          }
+        }
+        setTables(filteredMap);
+        setCsvs(filteredCsvMap);
         setPercent(100);
       } catch (err) {
         console.error(err);

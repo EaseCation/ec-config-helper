@@ -38,7 +38,7 @@ export interface ResultType {
 /** 生成 Lottery 所需 JSON */
 export function formatLottery(pages: NotionPage[]): ResultType  {
   if (pages.length === 0) {
-    return { 
+    return {
       name: "",
       result: DEFAULT_RESULT,
       wiki_result: DEFAULT_WIKI_RESULT
