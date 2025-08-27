@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, HashRouter } from 'react-router
 import LayoutContainer from './components/LayoutContainer';
 import WelcomePage from './pages/WelcomePage';
 import LotteryPage from './pages/LotteryPage';
+import LotteryWikiPage from './pages/LotteryWikiPage';
 import LegacyWorkshopPage from './pages/LegacyWorkshopPage';
 import WorkshopPage from './pages/WorkshopPage';
 import CommodityPage from './pages/CommodityPage';
@@ -37,6 +38,7 @@ const App: React.FC = () => {
           {/* 默认首页重定向到 /workshop */}
           <Route path="/" element={<Navigate to="/workshop" replace />} />
           <Route path="/lottery" element={<LotteryPage />} />
+          <Route path="/lottery-wiki" element={<LotteryWikiPage />} />
           <Route path="/lworkshop" element={<LegacyWorkshopPage />} />
           <Route path="/workshop" element={<WorkshopPage />} />
           <Route path="/commodity" element={<CommodityPage />} />

@@ -194,8 +194,9 @@ export function buildMarkdownTables(
     }));
     const lines: string[] = [];
     lines.push(`# ${displayName}`);
+    lines.push(`> 更新时间：${new Date().toISOString().replace('T', ' ').slice(0, 19)}`);
+    lines.push('');
     if (data.fallbackTimes > 0) {
-      lines.push('');
       lines.push(
         `抽取 ${data.fallbackTimes} 次后触发抽奖保底，会按照玩家商品拥有情况给予某一个保底奖励（保底商品会在"概率"一列中标注"保底"）。`,
       );
