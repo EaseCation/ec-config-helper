@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
-import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined } from '@ant-design/icons';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
@@ -28,11 +28,14 @@ const LotteryWikiTab: React.FC = () => {
   const [stage, setStage] = useState('初始化');
   const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
   const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, size: number}>>([]);
   const [nameMap, setNameMap] = useState<Record<string, string>>({});
   const [notionNameMap, setNotionNameMap] = useState<Record<string, string>>({});
   const [boxNameMap, setBoxNameMap] = useState<Record<string, string>>({});
   const [langMap, setLangMap] = useState<Record<string, string>>({});
+  const [langFile, setLangFile] = useState<{name: string, size: number} | null>(null);
   const [killerMap, setKillerMap] = useState<Record<string, string>>({});
+  const [killerFile, setKillerFile] = useState<{name: string, size: number} | null>(null);
 
   const mergeNameMaps = (
     nMap: Record<string, string>,
@@ -160,6 +163,13 @@ const LotteryWikiTab: React.FC = () => {
           }
           return newMap;
         });
+        
+        // 添加文件到列表
+        setUploadedFiles(prev => [...prev, {
+          name: file.name,
+          size: file.size
+        }]);
+        
         messageApi.success('JSON 上传成功');
       } catch (err) {
         messageApi.error('JSON 解析失败');
@@ -175,15 +185,17 @@ const LotteryWikiTab: React.FC = () => {
       try {
         const json = JSON.parse(String(e.target?.result || '{}'));
         const parsed = parseLanguageConfig(json);
-        setLangMap((prev) => {
-          const newMap = { ...prev, ...parsed };
-          const merged = mergeNameMaps(notionNameMap, newMap, killerMap);
-          setNameMap(merged);
-          if (Object.keys(notionMap).length) {
-            rebuild(notionMap, uploadedMap, merged, boxNameMap);
-          }
-          return newMap;
+        // 替换而不是合并
+        setLangMap(parsed);
+        setLangFile({
+          name: file.name,
+          size: file.size
         });
+        const merged = mergeNameMaps(notionNameMap, parsed, killerMap);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
         messageApi.success('语言配置 JSON 上传成功');
       } catch (err) {
         messageApi.error('语言配置解析失败');
@@ -199,15 +211,17 @@ const LotteryWikiTab: React.FC = () => {
       try {
         const json = JSON.parse(String(e.target?.result || '{}'));
         const parsed = parseKillerMerchandise(json);
-        setKillerMap((prev) => {
-          const newMap = { ...prev, ...parsed };
-          const merged = mergeNameMaps(notionNameMap, langMap, newMap);
-          setNameMap(merged);
-          if (Object.keys(notionMap).length) {
-            rebuild(notionMap, uploadedMap, merged, boxNameMap);
-          }
-          return newMap;
+        // 替换而不是合并
+        setKillerMap(parsed);
+        setKillerFile({
+          name: file.name,
+          size: file.size
         });
+        const merged = mergeNameMaps(notionNameMap, langMap, parsed);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
         messageApi.success('密室杀手商品 JSON 上传成功');
       } catch (err) {
         messageApi.error('密室杀手商品解析失败');
@@ -315,33 +329,56 @@ const LotteryWikiTab: React.FC = () => {
   return (
     <>
       {contextHolder}
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} direction="vertical" size="small">
         <Space>
           <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
-            <Button icon={<UploadOutlined />}>上传 JSON</Button>
+            <Button 
+              icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+              type={uploadedFiles.length > 0 ? "primary" : "default"}
+            >
+              {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+            </Button>
           </Upload>
-          {Object.keys(uploadedMap).length > 0 && <Tag color="blue">已上传</Tag>}
-        </Space>
-        <Space>
-          <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" multiple>
-            <Button icon={<UploadOutlined />}>上传语言配置</Button>
+          
+          <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
+            <Button 
+              icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+              type={langFile ? "primary" : "default"}
+            >
+              {langFile ? langFile.name : '上传语言配置'}
+            </Button>
           </Upload>
-          {Object.keys(langMap).length > 0 && <Tag color="blue">已上传</Tag>}
-        </Space>
-        <Space>
-          <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json" multiple>
-            <Button icon={<UploadOutlined />}>上传密室杀手商品</Button>
+          
+          <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
+            <Button 
+              icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+              type={killerFile ? "primary" : "default"}
+            >
+              {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+            </Button>
           </Upload>
-          {Object.keys(killerMap).length > 0 && <Tag color="blue">已上传</Tag>}
+          
+          <Button icon={<PlayCircleOutlined />} onClick={load}>
+            开始
+          </Button>
+          <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
+            <Button icon={<ExportOutlined />}>导出</Button>
+          </Dropdown>
         </Space>
-        <Button icon={<PlayCircleOutlined />} onClick={load}>
-          开始
-        </Button>
-        <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
-          <Button icon={<ExportOutlined />}>导出</Button>
-        </Dropdown>
+
+        {/* 显示已上传的JSON文件名 */}
+        {uploadedFiles.length > 0 && (
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            已上传的抽奖箱配置文件：
+            {uploadedFiles.map((file, index) => (
+              <span key={index} style={{ marginRight: '8px' }}>
+                {file.name}
+              </span>
+            ))}
+          </div>
+        )}
       </Space>
-      <Collapse accordion items={items} />
+      {items.length > 0 && <Collapse accordion items={items} />}
     </>
   );
 };
