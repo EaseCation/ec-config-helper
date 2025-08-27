@@ -320,7 +320,11 @@ const LotteryWikiPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '2rem' }}>
+      <div
+        className="responsive-padding"
+        style={{ textAlign: 'center', paddingTop: '2rem' }}
+      >
+        {contextHolder}
         <Progress
           percent={percent}
           status={stageIndex === stages.length - 1 ? 'success' : 'active'}
@@ -397,9 +401,9 @@ const LotteryWikiPage: React.FC = () => {
   });
 
   return (
-    <>
+    <div className="responsive-padding">
       {contextHolder}
-      <Title level={2} style={{ marginTop: 0 }}>概率表导出</Title>
+      <Title style={{ margin: '8px 0 24px' }}>概率表导出</Title>
       <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
         <Space wrap size="middle">
           <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
@@ -449,7 +453,7 @@ const LotteryWikiPage: React.FC = () => {
         )}
       </Space>
       {items.length > 0 && <Collapse accordion items={items} />}
-    </>
+    </div>
   );
 };
 
