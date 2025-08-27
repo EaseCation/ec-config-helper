@@ -1,6 +1,7 @@
 import { Empty, Typography } from "antd";
 import React from "react";
 import { DifferentParts, CommodityData } from "../../services/commodity/compareCommodityData";
+import { formatDuration } from "../../utils/timeFormat";
 
 const { Paragraph } = Typography;
 
@@ -76,6 +77,21 @@ const CommodityTree: React.FC<CommodityTreeProps> = ({ fullJson, differentParts 
       ...differentParts.commonItems.map((item) => ({ ...item, _type: "common" })), // Include commonItems without special highlight
     ];
   }
+
+  // 🔹 格式化特定商品的 gain 字段，将秒数转换为可读时间
+  const prefixes = ["prefix", "ornament.", "pet.", "music.", "zb."];
+  processedJson.types.forEach((item: any) => {
+    const gain = item?.exchange?.fallbackExchange?.gain;
+    if (gain && typeof gain === "string") {
+      const [id, value] = gain.split(":");
+      const seconds = Number(value);
+      if (!Number.isNaN(seconds) && prefixes.some((p) => id.startsWith(p))) {
+        const human = formatDuration(seconds);
+        item.exchange.fallbackExchange.gain =
+          human === "永久" ? `${id}:${human}` : `${id}:${seconds}(${human})`;
+      }
+    }
+  });
 
   return (
     <Paragraph>
