@@ -148,6 +148,49 @@ export function buildWikiTables(
   }
   return result;
 }
+
+export function buildMarkdownTables(
+  map: Record<string, WikiResult>,
+  nameMap: Record<string, string> = {},
+  boxNameMap: Record<string, string> = {},
+): Record<string, string> {
+  const display: Record<string, DisplayItem> = {};
+  for (const [key, item] of Object.entries(map)) {
+    if (item.display) {
+      display[key] = {
+        fallbackTimes: item.fallbackTimes,
+        items: formatWikiSingleGain(map, key),
+      };
+    }
+  }
+  const withChance = formatWikiChance(display);
+  const result: Record<string, string> = {};
+  for (const [exc, data] of Object.entries(withChance)) {
+    const wiki = map[exc];
+    const displayName = translateBoxName(wiki, boxNameMap);
+    const translatedItems = data.items.map((i) => ({
+      ...i,
+      name: nameMap[i.name] || i.name,
+    }));
+    const lines: string[] = [];
+    lines.push(`# ${displayName}`);
+    if (data.fallbackTimes > 0) {
+      lines.push('');
+      lines.push(
+        `抽取 ${data.fallbackTimes} 次后触发抽奖保底，会按照玩家商品拥有情况给予某一个保底奖励（保底商品会在"概率"一列中标注"保底"）。`,
+      );
+      lines.push('');
+    }
+    lines.push('| 奖励内容 | 奖励数量 | 概率 |');
+    lines.push('| --- | --- | --- |');
+    for (const item of translatedItems) {
+      lines.push(`| ${item.name} | ${item.data} | ${item.chance} |`);
+    }
+    result[displayName] = lines.join('\n');
+  }
+  return result;
+}
+
 function csvEscape(v: string | number): string {
   const s = String(v ?? '');
   const needsQuote = /[",\r\n]/.test(s) || s.startsWith('=') || s.startsWith('+') || s.startsWith('-') || s.startsWith('@');

@@ -42,6 +42,25 @@ export function downloadCSV(csvData: string, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadCSVAsZip(fileArray: Record<string, string>, zipFileName: string) {
+  const zip = new JSZip();
+
+  Object.entries(fileArray).forEach(([fileName, csvData]) => {
+    const BOM = '\uFEFF';
+    const normalized = csvData.replace(/\r?\n/g, '\r\n');
+    zip.file(`${fileName}.csv`, BOM + normalized);
+  });
+
+  zip
+    .generateAsync({ type: 'blob' })
+    .then((blob) => {
+      saveAs(blob, zipFileName.endsWith('.zip') ? zipFileName : `${zipFileName}.zip`);
+    })
+    .catch((error) => {
+      console.error('Error generating ZIP file:', error);
+    });
+}
+
 export function downloadJsonAsZip(fileArray: { [key: string]: any }, zipFileName: string) {
   // 创建一个 JSZip 实例
   const zip = new JSZip();
