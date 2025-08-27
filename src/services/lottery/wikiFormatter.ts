@@ -73,7 +73,11 @@ function formatWikiSingleGain(
 function formatWikiChance(display: Record<string, DisplayItem>): Record<string, {fallbackTimes: number; items: ChanceItem[]}> {
   const res: Record<string, {fallbackTimes: number; items: ChanceItem[]}> = {};
   for (const [name, item] of Object.entries(display)) {
-    const totalWeight = item.items.reduce((sum, i) => sum + i.weight, 0);
+    // 只计算非保底项目的总权重，保底项目不应该参与概率计算
+    const totalWeight = item.items
+      .filter(i => !i.fallback && i.weight)
+      .reduce((sum, i) => sum + i.weight, 0);
+    
     const items: ChanceItem[] = item.items.map(i => {
       if (i.fallback || !i.weight) {
         return { name: i.name, data: i.data, chance: '保底' };
