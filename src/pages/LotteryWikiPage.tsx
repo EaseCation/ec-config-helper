@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown } from 'antd';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal } from 'antd';
 import type { MenuProps } from 'antd';
-import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../services/commonFormat';
 import { formatLottery, WikiResult } from '../services/lottery/lotteryService';
@@ -80,6 +80,7 @@ const LotteryWikiPage: React.FC = () => {
   const [stageIndex, setStageIndex] = useState(0);
   const percent = Math.round((stageIndex / (stages.length - 1)) * 100);
   const currentStage = stages[stageIndex];
+  const [infoOpen, setInfoOpen] = useState(false);
   const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
   const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
   const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, size: number}>>([]);
@@ -386,8 +387,45 @@ const LotteryWikiPage: React.FC = () => {
   return (
     <div className="responsive-padding">
       {contextHolder}
-      <Title style={{ margin: '8px 0 24px' }}>概率表导出</Title>
-      
+      <Modal
+        open={infoOpen}
+        onCancel={() => setInfoOpen(false)}
+        footer={null}
+        title="LotteryWikiTab 工作原理"
+        width={800}
+      >
+        <Typography style={{ maxHeight: '60vh', overflowY: 'auto', lineHeight: 1.7 }}>
+          <Paragraph>
+            LotteryWikiTab 用于将抽奖配置导出为 Wiki 表格，主要流程如下：
+          </Paragraph>
+          <ol>
+            <li>读取 Notion 数据库的原始配置。</li>
+            <li>若上传 JSON 抽奖箱配置，则优先使用上传内容。</li>
+            <li>名称映射优先级：Notion → cfgLanguage → merchandise.json。</li>
+            <li>分析并重新构建后可导出表格、CSV 与 Markdown。</li>
+          </ol>
+          <Title level={5} style={{ marginTop: 16 }}>文件来源说明</Title>
+          <ul>
+            <li>
+              <Text strong>JSON 抽奖箱配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange</Text> 目录中的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>语言库</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>密室杀手 merchandise</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json</Text>。
+            </li>
+          </ul>
+        </Typography>
+      </Modal>
+      <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0 24px' }}>
+        <Title style={{ margin: 0, flex: 1 }}>概率表导出</Title>
+        <InfoCircleOutlined
+          style={{ fontSize: 20, color: '#1677ff', cursor: 'pointer' }}
+          onClick={() => setInfoOpen(true)}
+        />
+      </div>
+
       {loading ? (
         <div style={{ textAlign: 'center', paddingTop: '2rem' }}>
           <Progress
