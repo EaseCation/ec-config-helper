@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload } from 'antd';
-import { CopyOutlined, DownloadOutlined, FileMarkdownOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown } from 'antd';
+import type { MenuProps } from 'antd';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
@@ -8,6 +9,7 @@ import { buildWikiTables, buildWikiCSVs, buildMarkdownTables } from '../../servi
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
 import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
 import { fetchLotteryBoxNameMap } from '../../services/lottery/lotteryNameService';
+import { parseLanguageConfig, parseKillerMerchandise } from '../../services/lottery/extraNameParser';
 import { downloadCSV, downloadCSVAsZip } from '../../utils/download';
 import { parseLocalLotteryConfig } from '../../services/lottery/configParser';
 
@@ -26,8 +28,29 @@ const LotteryWikiTab: React.FC = () => {
   const [stage, setStage] = useState('初始化');
   const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
   const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, size: number}>>([]);
   const [nameMap, setNameMap] = useState<Record<string, string>>({});
+  const [notionNameMap, setNotionNameMap] = useState<Record<string, string>>({});
   const [boxNameMap, setBoxNameMap] = useState<Record<string, string>>({});
+  const [langMap, setLangMap] = useState<Record<string, string>>({});
+  const [langFile, setLangFile] = useState<{name: string, size: number} | null>(null);
+  const [killerMap, setKillerMap] = useState<Record<string, string>>({});
+  const [killerFile, setKillerFile] = useState<{name: string, size: number} | null>(null);
+
+  const mergeNameMaps = (
+    nMap: Record<string, string>,
+    lMap: Record<string, string>,
+    kMap: Record<string, string>
+  ) => {
+    const merged: Record<string, string> = { ...nMap };
+    for (const [k, v] of Object.entries(lMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    for (const [k, v] of Object.entries(kMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    return merged;
+  };
 
   const rebuild = (
     nMap: Record<string, WikiResult>,
@@ -107,14 +130,16 @@ const LotteryWikiTab: React.FC = () => {
         fetchCommodityNameMap(),
         fetchLotteryBoxNameMap()
       ]);
-      setNameMap(nMap);
+      setNotionNameMap(nMap);
+      const mergedNameMap = mergeNameMaps(nMap, langMap, killerMap);
+      setNameMap(mergedNameMap);
       setBoxNameMap(bMap);
 
       setStage('构建 Wiki 数据');
       setPercent(90);
       setNotionMap(wikiMap);
 
-      rebuild(wikiMap, uploadedMap, nMap, bMap);
+      rebuild(wikiMap, uploadedMap, mergedNameMap, bMap);
       setPercent(100);
     } catch (err) {
       console.error(err);
@@ -131,9 +156,20 @@ const LotteryWikiTab: React.FC = () => {
       try {
         const json = JSON.parse(String(e.target?.result || '{}'));
         const parsed = parseLocalLotteryConfig(json);
-        const newMap = { ...uploadedMap, ...parsed };
-        setUploadedMap(newMap);
-        rebuild(notionMap, newMap);
+        setUploadedMap((prev) => {
+          const newMap = { ...prev, ...parsed };
+          if (Object.keys(notionMap).length) {
+            rebuild(notionMap, newMap);
+          }
+          return newMap;
+        });
+        
+        // 添加文件到列表
+        setUploadedFiles(prev => [...prev, {
+          name: file.name,
+          size: file.size
+        }]);
+        
         messageApi.success('JSON 上传成功');
       } catch (err) {
         messageApi.error('JSON 解析失败');
@@ -142,6 +178,85 @@ const LotteryWikiTab: React.FC = () => {
     reader.readAsText(file);
     return false;
   };
+
+  const handleLangUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseLanguageConfig(json);
+        // 替换而不是合并
+        setLangMap(parsed);
+        setLangFile({
+          name: file.name,
+          size: file.size
+        });
+        const merged = mergeNameMaps(notionNameMap, parsed, killerMap);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
+        messageApi.success('语言配置 JSON 上传成功');
+      } catch (err) {
+        messageApi.error('语言配置解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleKillerUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseKillerMerchandise(json);
+        // 替换而不是合并
+        setKillerMap(parsed);
+        setKillerFile({
+          name: file.name,
+          size: file.size
+        });
+        const merged = mergeNameMaps(notionNameMap, langMap, parsed);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
+        messageApi.success('密室杀手商品 JSON 上传成功');
+      } catch (err) {
+        messageApi.error('密室杀手商品解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleExportAll: MenuProps['onClick'] = ({ key }) => {
+    if (key === 'csv') {
+      if (Object.keys(csvs).length) {
+        downloadCSVAsZip(csvs, 'lottery_csv');
+        messageApi.success('已下载全部 CSV');
+      } else {
+        messageApi.error('CSV 数据缺失');
+      }
+    } else if (key === 'markdown') {
+      const combined = Object.keys(tables)
+        .map((name) => markdowns[name])
+        .filter(Boolean)
+        .join('\n\n');
+      if (combined) {
+        navigator.clipboard.writeText(combined);
+        messageApi.success('已复制全部 Markdown');
+      } else {
+        messageApi.error('Markdown 数据缺失');
+      }
+    }
+  };
+
+  const exportAllItems: MenuProps['items'] = [
+    { key: 'csv', label: '下载全部 CSV' },
+    { key: 'markdown', label: '复制全部 Markdown' }
+  ];
 
   if (loading) {
     return (
@@ -164,19 +279,34 @@ const LotteryWikiTab: React.FC = () => {
           {sum !== undefined && (
             <Tag color={Math.abs(sum - 100) < 0.01 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
           )}
-          <Button
-            size="small"
-            icon={<DownloadOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (csv) {
-                downloadCSV(csv, name);
-                messageApi.success('已下载');
-              } else {
-                messageApi.error('CSV 数据缺失');
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'csv', label: '下载 CSV' },
+                { key: 'markdown', label: '复制 Markdown' }
+              ],
+              onClick: ({ key, domEvent }) => {
+                domEvent.stopPropagation();
+                if (key === 'csv') {
+                  if (csv) {
+                    downloadCSV(csv, name);
+                    messageApi.success('已下载');
+                  } else {
+                    messageApi.error('CSV 数据缺失');
+                  }
+                } else if (key === 'markdown') {
+                  if (md) {
+                    navigator.clipboard.writeText(md);
+                    messageApi.success('Markdown 已复制');
+                  } else {
+                    messageApi.error('Markdown 数据缺失');
+                  }
+                }
               }
             }}
-          />
+          >
+            <Button size="small" icon={<ExportOutlined />} onClick={(e) => e.stopPropagation()} />
+          </Dropdown>
           <Button
             size="small"
             icon={<CopyOutlined />}
@@ -184,19 +314,6 @@ const LotteryWikiTab: React.FC = () => {
               e.stopPropagation();
               navigator.clipboard.writeText(table);
               messageApi.success('已复制');
-            }}
-          />
-          <Button
-            size="small"
-            icon={<FileMarkdownOutlined />}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (md) {
-                navigator.clipboard.writeText(md);
-                messageApi.success('Markdown 已复制');
-              } else {
-                messageApi.error('Markdown 数据缺失');
-              }
             }}
           />
         </Space>
@@ -212,45 +329,56 @@ const LotteryWikiTab: React.FC = () => {
   return (
     <>
       {contextHolder}
-      <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ReloadOutlined />} onClick={load}>
-          刷新
-        </Button>
-        <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json">
-          <Button icon={<UploadOutlined />}>上传 JSON</Button>
-        </Upload>
-        <Button
-          icon={<DownloadOutlined />}
-          onClick={() => {
-            if (Object.keys(csvs).length) {
-              downloadCSVAsZip(csvs, 'lottery_csv');
-              messageApi.success('已下载全部 CSV');
-            } else {
-              messageApi.error('CSV 数据缺失');
-            }
-          }}
-        >
-          下载全部 CSV
-        </Button>
-        <Button
-          icon={<FileMarkdownOutlined />}
-          onClick={() => {
-            const combined = Object.keys(tables)
-              .map((name) => markdowns[name])
-              .filter(Boolean)
-              .join('\n\n');
-            if (combined) {
-              navigator.clipboard.writeText(combined);
-              messageApi.success('已复制全部 Markdown');
-            } else {
-              messageApi.error('Markdown 数据缺失');
-            }
-          }}
-        >
-          复制全部 Markdown
-        </Button>
+      <Space style={{ marginBottom: 16 }} direction="vertical" size="small">
+        <Space>
+          <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
+            <Button 
+              icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+              type={uploadedFiles.length > 0 ? "primary" : "default"}
+            >
+              {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+            </Button>
+          </Upload>
+          
+          <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
+            <Button 
+              icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+              type={langFile ? "primary" : "default"}
+            >
+              {langFile ? langFile.name : '上传语言配置'}
+            </Button>
+          </Upload>
+          
+          <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
+            <Button 
+              icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+              type={killerFile ? "primary" : "default"}
+            >
+              {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+            </Button>
+          </Upload>
+          
+          <Button icon={<PlayCircleOutlined />} onClick={load}>
+            开始
+          </Button>
+          <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
+            <Button icon={<ExportOutlined />}>导出</Button>
+          </Dropdown>
+        </Space>
+
+        {/* 显示已上传的JSON文件名 */}
+        {uploadedFiles.length > 0 && (
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            已上传的抽奖箱配置文件：
+            {uploadedFiles.map((file, index) => (
+              <span key={index} style={{ marginRight: '8px' }}>
+                {file.name}
+              </span>
+            ))}
+          </div>
+        )}
       </Space>
-      <Collapse accordion items={items} />
+      {items.length > 0 && <Collapse accordion items={items} />}
     </>
   );
 };
