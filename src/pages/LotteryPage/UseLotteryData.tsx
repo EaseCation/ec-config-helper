@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getNotionToken, fetchNotionAllPages } from "../../notion/notionClient";
-import { formatLottery } from "../../services/lottery/lotteryService";
+import { formatLottery, translateExchangeId } from "../../services/lottery/lotteryService";
 import { parseCheckbox, parseRollup, parseRelation } from "../../services/commonFormat";
 import { message } from "antd"; // Ant Design 的消息组件
 
@@ -56,9 +56,10 @@ export const useLotteryData = (databaseId: string) => {
       for (const key in result) {
         if (result.hasOwnProperty(key)) {
           const formattedData = formatLottery(result[key]);
-          if (formattedData.name && formattedData.name !== "") {
+          if (formattedData.exchangeId && formattedData.exchangeId !== "") {
+            const formattedName = translateExchangeId(formattedData.exchangeId);
             newFileArray[exchangeIdBoxId[key]] = {
-              [formattedData.name]: formattedData.result,
+              [formattedName]: formattedData.result,
             };
           }
         }

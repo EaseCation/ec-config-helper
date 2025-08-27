@@ -1,5 +1,5 @@
-import { NotionPage } from '../../notion/notionTypes';
-import { flatProperty, parseCheckbox, parseRollup, parseRelation} from '../commonFormat'
+import { NotionPage } from "../../notion/notionTypes";
+import { flatProperty, parseCheckbox, parseRollup } from "../commonFormat";
 
 
 const DEFAULT_WIKI_RESULT: WikiResult = {
@@ -30,24 +30,32 @@ interface WikiResult {
 }
 
 export interface ResultType {
-  name: string;
-  result: { [key: string]: any }; 
+  /** 原始的 exchangeId，用于后续格式化 */
+  exchangeId: string;
+  result: { [key: string]: any };
   wiki_result: WikiResult;
 }
 
+/**
+ * Convert raw exchange ID to the final lottery key.
+ * This is intentionally deferred so translation happens only
+ * at the output step, keeping the computation phase free of formatting.
+ */
+export const translateExchangeId = (exchangeId: string): string =>
+  `exc_lottery_${exchangeId.replace(/\./g, "_")}`;
+
 /** 生成 Lottery 所需 JSON */
-export function formatLottery(pages: NotionPage[]): ResultType  {
+export function formatLottery(pages: NotionPage[]): ResultType {
   if (pages.length === 0) {
-    return { 
-      name: "",
+    return {
+      exchangeId: "",
       result: DEFAULT_RESULT,
-      wiki_result: DEFAULT_WIKI_RESULT
+      wiki_result: DEFAULT_WIKI_RESULT,
     };
   }
 
   const first = pages[0];
   const exchangeId = parseRollup(first.properties.exchange_id);
-  const exchangeRealName: string = `exc_lottery_${exchangeId.replace(/\./g, '_')}`;
   const ifNeedKeyDefult = parseRollup(first.properties['需要钥匙？']);
   let ifNeedKey;
   if(ifNeedKeyDefult === '') {
@@ -86,8 +94,8 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
 
   for (const item of pages) {
     let itemExchangeID = parseRollup(item.properties.gainExchangeID);
-    if(itemExchangeID) {
-      itemExchangeID = `exc_lottery_${itemExchangeID.replace(/\./g, '_')}`;
+    if (itemExchangeID) {
+      itemExchangeID = translateExchangeId(itemExchangeID);
     }
     const itemWeight = Number(flatProperty(item.properties['权重']));
     const itemResult: any = {
@@ -147,8 +155,8 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
   }
 
   return {
-    name: exchangeRealName,
+    exchangeId,
     result: result,
-    wiki_result: wikiResult
+    wiki_result: wikiResult,
   };
 }
