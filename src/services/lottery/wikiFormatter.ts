@@ -149,3 +149,39 @@ export function buildWikiTables(
   return result;
 }
 
+
+export function buildWikiCSVs(
+  map: Record<string, WikiResult>,
+  nameMap: Record<string, string> = {},
+  boxNameMap: Record<string, string> = {}
+): Record<string, string> {
+  const display: Record<string, DisplayItem> = {};
+  for (const [key, item] of Object.entries(map)) {
+    if (item.display) {
+      display[key] = {
+        fallbackTimes: item.fallbackTimes,
+        items: formatWikiSingleGain(map, key)
+      };
+    }
+  }
+  const withChance = formatWikiChance(display);
+  const result: Record<string, string> = {};
+  for (const [exc, data] of Object.entries(withChance)) {
+    const wiki = map[exc];
+    const displayName = translateBoxName(wiki, boxNameMap);
+    const translatedItems = data.items.map((i) => ({
+      ...i,
+      name: nameMap[i.name] || i.name
+    }));
+    let csv = '';
+    if (data.fallbackTimes > 0) {
+      csv += `保底次数,${data.fallbackTimes}\n`;
+    }
+    csv += '奖励内容,奖励数量,概率\n';
+    for (const item of translatedItems) {
+      csv += `${item.name},${item.data},${item.chance}\n`;
+    }
+    result[displayName] = csv;
+  }
+  return result;
+}
