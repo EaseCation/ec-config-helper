@@ -12,6 +12,7 @@ const splitString = (input: string): string[] => {
 export const useLotteryData = (databaseId: string) => {
   const [loading, setLoading] = useState(false);
   const [fileArray, setFileArray] = useState<{ [key: string]: any }>({});
+  const [wikiFileArray, setWikiFileArray] = useState<{ [key: string]: any }>({});
 
   // 重新获取数据的函数
   const fetchData = useCallback(async () => {
@@ -27,6 +28,7 @@ export const useLotteryData = (databaseId: string) => {
     }
 
     let newFileArray: { [key: string]: any } = {};
+    let newWikiFileArray: { [key: string]: any } = {};
     setLoading(true);
 
     try {
@@ -60,6 +62,9 @@ export const useLotteryData = (databaseId: string) => {
             newFileArray[exchangeIdBoxId[key]] = {
               [formattedData.name]: formattedData.result,
             };
+            newWikiFileArray[exchangeIdBoxId[key]] = {
+              [formattedData.name]: formattedData.wiki_result,
+            };
           }
         }
       }
@@ -67,11 +72,14 @@ export const useLotteryData = (databaseId: string) => {
       // ✅ 按 exchangeIdBoxId 的 key 进行字母顺序排序
       const sortedKeys = Object.keys(newFileArray).sort();
       let sortedFileArray: { [key: string]: any } = {};
+      let sortedWikiFileArray: { [key: string]: any } = {};
       for (const key of sortedKeys) {
         sortedFileArray[key] = newFileArray[key];
+        sortedWikiFileArray[key] = newWikiFileArray[key];
       }
 
       setFileArray(sortedFileArray);
+      setWikiFileArray(sortedWikiFileArray);
     } catch (err) {
       message.error("获取 Lottery 数据失败");
       console.error("获取 Lottery 数据失败:", err);
@@ -79,7 +87,7 @@ export const useLotteryData = (databaseId: string) => {
       setLoading(false);
     }
 
-    return newFileArray;
+    return { fileArray: newFileArray, wikiFileArray: newWikiFileArray };
   }, [databaseId]);
 
   // 初次加载
@@ -88,5 +96,5 @@ export const useLotteryData = (databaseId: string) => {
   }, [fetchData]);
 
   // 返回 `refetch` 让外部调用
-  return { loading, fileArray, refetch: fetchData };
+  return { loading, fileArray, wikiFileArray, refetch: fetchData };
 };

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Tag, theme, BackTop, Checkbox } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Tag, theme, BackTop, Checkbox, Tabs } from "antd";
 import { Content } from "antd/es/layout/layout";
 import {LotteryJsonViewer} from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
@@ -33,6 +33,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   const [loadingLocalJson, setLoadingLocalJson] = useState(false); // Loading state for local JSON
   const [localFileExists, setLocalFileExists] = useState(false); // Check if local file exists
   const [remoteJsonMap, setRemoteJsonMap] = useState<{ [key: string]: any }>({}); // Remote JSON data
+  const [remoteWikiMap, setRemoteWikiMap] = useState<{ [key: string]: any }>({}); // Remote wiki data
   const [remoteJsonLoading, setRemoteJsonLoading] = useState(true); // Loading state for remote JSON
   const [saving, setSaving] = useState(false); // Saving state for sync
 
@@ -133,7 +134,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
   };
 
   // 获取远端 Lottery 数据
-  const { fileArray: remoteJsonMapData, refetch } = useLotteryData(NOTION_DATABASE_LOTTERY);
+  const { fileArray: remoteJsonMapData, wikiFileArray: remoteWikiMapData, refetch } = useLotteryData(NOTION_DATABASE_LOTTERY);
 
   // 更新侧边栏数据
   const updateItems = () => {
@@ -177,6 +178,12 @@ const LotteryContentWithDirHandle: React.FC = () => {
       updateItems();
     }
   }, [remoteJsonMapData, currentTypes]);
+
+  useEffect(() => {
+    if (remoteWikiMapData && Object.keys(remoteWikiMapData).length > 0) {
+      setRemoteWikiMap(remoteWikiMapData);
+    }
+  }, [remoteWikiMapData]);
 
   // 监听 `dirHandle`，加载 notion.json 并初始化 `currentTypes`
   useEffect(() => {
@@ -333,88 +340,102 @@ const LotteryContentWithDirHandle: React.FC = () => {
       />
     </Sider>
       <Content style={{ padding: "0 24px", minHeight: 280 }}>
-        <Flex gap={16}>
-          {/* 本地 JSON 数据
-          <Card
-            style={{ flex: 2, minHeight: "80vh" }}
-            title={
-              <Space>
-                本地 JSON
-                <Button
-                  type={"text"}
-                  icon={<ReloadOutlined />}
-                  onClick={loadLocalFile}
-                  disabled={loadingLocalJson}
-                />
-              </Space>
-            }
-            loading={loadingLocalJson}
-          >
-            {localFileExists && currentType && localJson[currentType] ? (
-              <LotteryJsonViewer fullJson={localJson[currentType]} differentParts={differentParts[currentType]} />
-            ) : (
-              <Text type="warning">本地 JSON 文件未找到</Text>
-            )}
-          </Card> */}
-
-          {/* Notion JSON 数据 */}
-          <Card
-              style={{ flex: 2, minHeight: "80vh" }}
-              title={
-                <Space>
-                  Notion 数据
-                  <Button
-                    type="text"
-                    icon={
-                      remoteJsonLoading ? (
-                        <LoadingOutlined style={{ fontSize: 16 }} />
-                      ) : (
-                        <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
-                      )
-                    }
-                    onClick={handleLoadRemoteJson}
-                    disabled={remoteJsonLoading}
-                  />
-                  {currentType &&
-                    differentParts[currentType]?.addedItems.length > 0 && (
-                      <Tag color="green">新增</Tag>
-                    )}
-                  {currentType &&
-                    differentParts[currentType]?.deletedItems.length > 0 && (
-                      <Tag color="red">移除</Tag>
-                    )}
-                </Space>
-              }
-              loading={remoteJsonLoading}
-              extra={
-                remoteJsonMap[currentType || ""] && (
-                  <Button
-                    icon={<SaveOutlined />}
-                    type="primary"
-                    loading={saving}
-                    onClick={handleSyncRemoteJson}
-                    disabled={
-                      // 当 checkedKeys 没有勾选，且 currentType 既不在 missingTypes 也不在 modifiedKeys 时，禁用按钮
-                      checkedKeys.length === 0 &&
-                      (!currentType || (!missingTypes.includes(currentType) && !modifiedKeys.includes(currentType)))
-                    }
-                  >
-                    同步到本地
-                  </Button>
-                )
-              }
-            >
-            { currentType && remoteJsonMap[currentType] ? (
-              <LotteryJsonViewer fullJson={remoteJsonMap[currentType]} differentParts={differentParts[currentType]} />
-            ) : (
-              <Flex style={{ padding: "32px 0", justifyContent: "center", alignItems: "center" }}>
-                <Button icon={<CloudDownloadOutlined />} onClick={handleLoadRemoteJson}>
-                  从 Notion 加载
-                </Button>
-              </Flex>
-            )}
-          </Card>
-        </Flex>
+        <Tabs defaultActiveKey="config">
+          <Tabs.TabPane tab="配置导出" key="config">
+            <Flex gap={16}>
+              <Card
+                style={{ flex: 2, minHeight: "80vh" }}
+                title={
+                  <Space>
+                    Notion 数据
+                    <Button
+                      type="text"
+                      icon={
+                        remoteJsonLoading ? (
+                          <LoadingOutlined style={{ fontSize: 16 }} />
+                        ) : (
+                          <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
+                        )
+                      }
+                      onClick={handleLoadRemoteJson}
+                      disabled={remoteJsonLoading}
+                    />
+                    {currentType &&
+                      differentParts[currentType]?.addedItems.length > 0 && (
+                        <Tag color="green">新增</Tag>
+                      )}
+                    {currentType &&
+                      differentParts[currentType]?.deletedItems.length > 0 && (
+                        <Tag color="red">移除</Tag>
+                      )}
+                  </Space>
+                }
+                loading={remoteJsonLoading}
+                extra={
+                  remoteJsonMap[currentType || ""] && (
+                    <Button
+                      icon={<SaveOutlined />}
+                      type="primary"
+                      loading={saving}
+                      onClick={handleSyncRemoteJson}
+                      disabled={
+                        checkedKeys.length === 0 &&
+                        (!currentType || (!missingTypes.includes(currentType) && !modifiedKeys.includes(currentType)))
+                      }
+                    >
+                      同步到本地
+                    </Button>
+                  )
+                }
+              >
+                { currentType && remoteJsonMap[currentType] ? (
+                  <LotteryJsonViewer fullJson={remoteJsonMap[currentType]} differentParts={differentParts[currentType]} />
+                ) : (
+                  <Flex style={{ padding: "32px 0", justifyContent: "center", alignItems: "center" }}>
+                    <Button icon={<CloudDownloadOutlined />} onClick={handleLoadRemoteJson}>
+                      从 Notion 加载
+                    </Button>
+                  </Flex>
+                )}
+              </Card>
+            </Flex>
+          </Tabs.TabPane>
+          <Tabs.TabPane tab="概率表导出" key="wiki">
+            <Flex gap={16}>
+              <Card
+                style={{ flex: 2, minHeight: "80vh" }}
+                title={
+                  <Space>
+                    概率表
+                    <Button
+                      type="text"
+                      icon={
+                        remoteJsonLoading ? (
+                          <LoadingOutlined style={{ fontSize: 16 }} />
+                        ) : (
+                          <ReloadOutlined style={{ fontSize: 14, opacity: 0.65 }} />
+                        )
+                      }
+                      onClick={handleLoadRemoteJson}
+                      disabled={remoteJsonLoading}
+                    />
+                  </Space>
+                }
+                loading={remoteJsonLoading}
+              >
+                { currentType && remoteWikiMap[currentType] ? (
+                  <LotteryJsonViewer fullJson={remoteWikiMap[currentType]} />
+                ) : (
+                  <Flex style={{ padding: "32px 0", justifyContent: "center", alignItems: "center" }}>
+                    <Button icon={<CloudDownloadOutlined />} onClick={handleLoadRemoteJson}>
+                      从 Notion 加载
+                    </Button>
+                  </Flex>
+                )}
+              </Card>
+            </Flex>
+          </Tabs.TabPane>
+        </Tabs>
 
         <BackTop visibilityHeight={100}>
           <Button shape="circle" icon={<UpOutlined />} style={{ backgroundColor: "#1890ff", color: "#fff", border: "none" }} />
