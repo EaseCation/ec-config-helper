@@ -123,9 +123,17 @@ function translateBoxName(
       return boxNameMap[key];
     }
   }
-  const langKey = `lobby.lottery.${noPrefix.replace(/_/g, '-')}`;
-  if (langMap[langKey]) {
-    return langMap[langKey];
+  const base = noPrefix.replace(/_/g, '-');
+  const withHyphenDigits = base.replace(/([a-zA-Z])(\d)/g, '$1-$2');
+  const langKeys = [
+    `lobby.lottery.${withHyphenDigits}`,
+    `lobby.lottery.${base}`,
+    `lobby.lottery.${noPrefix}`
+  ];
+  for (const key of langKeys) {
+    if (langMap[key]) {
+      return langMap[key];
+    }
   }
   return wiki.name;
 }
