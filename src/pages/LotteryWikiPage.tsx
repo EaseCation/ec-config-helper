@@ -318,23 +318,6 @@ const LotteryWikiPage: React.FC = () => {
     { key: 'markdown-download', label: '下载全部 Markdown' }
   ];
 
-  if (loading) {
-    return (
-      <div
-        className="responsive-padding"
-        style={{ textAlign: 'center', paddingTop: '2rem' }}
-      >
-        {contextHolder}
-        <Progress
-          percent={percent}
-          status={stageIndex === stages.length - 1 ? 'success' : 'active'}
-          strokeColor={{ from: '#108ee9', to: '#87d068' }}
-        />
-        <div style={{ marginTop: 16 }}>{currentStage}</div>
-      </div>
-    );
-  }
-
   const items = Object.entries(tables).map(([name, table]) => {
     const csv = csvs[name];
     const md = markdowns[name];
@@ -345,7 +328,7 @@ const LotteryWikiPage: React.FC = () => {
       extra: (
         <Space>
           {sum !== undefined && (
-            <Tag color={Math.abs(sum - 100) < 0.01 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
+            <Tag color={sum >= 99 && sum <= 101 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
           )}
           <Dropdown
             menu={{
@@ -404,55 +387,69 @@ const LotteryWikiPage: React.FC = () => {
     <div className="responsive-padding">
       {contextHolder}
       <Title style={{ margin: '8px 0 24px' }}>概率表导出</Title>
-      <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
-        <Space wrap size="middle">
-          <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
-            <Button
-              icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
-              type={uploadedFiles.length > 0 ? 'primary' : 'default'}
-            >
-              {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
-            </Button>
-          </Upload>
+      
+      {loading ? (
+        <div style={{ textAlign: 'center', paddingTop: '2rem' }}>
+          <Progress
+            percent={percent}
+            status={stageIndex === stages.length - 1 ? 'success' : 'active'}
+            strokeColor={{ from: '#108ee9', to: '#87d068' }}
+          />
+          <div style={{ marginTop: 16 }}>{currentStage}</div>
+        </div>
+      ) : (
+        <>
+          <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
+            <Space wrap size="small">
+              <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
+                <Button
+                  icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={uploadedFiles.length > 0 ? 'primary' : 'default'}
+                >
+                  {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+                </Button>
+              </Upload>
 
-          <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
-            <Button
-              icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-              type={langFile ? 'primary' : 'default'}
-            >
-              {langFile ? langFile.name : '上传语言配置'}
-            </Button>
-          </Upload>
+              <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
+                <Button
+                  icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={langFile ? 'primary' : 'default'}
+                >
+                  {langFile ? langFile.name : '上传语言配置'}
+                </Button>
+              </Upload>
 
-          <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
-            <Button
-              icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-              type={killerFile ? 'primary' : 'default'}
-            >
-              {killerFile ? killerFile.name : '上传密室杀手商品配置'}
-            </Button>
-          </Upload>
+              <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
+                <Button
+                  icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={killerFile ? 'primary' : 'default'}
+                >
+                  {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+                </Button>
+              </Upload>
 
-          <Button type="primary" icon={<PlayCircleOutlined />} onClick={load}>
-            开始
-          </Button>
-          <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
-            <Button icon={<ExportOutlined />}>导出</Button>
-          </Dropdown>
-        </Space>
+              <Button type="primary" icon={<PlayCircleOutlined />} onClick={load}>
+                开始
+              </Button>
+              <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
+                <Button icon={<ExportOutlined />}>导出</Button>
+              </Dropdown>
+            </Space>
 
-        {uploadedFiles.length > 0 && (
-          <div style={{ fontSize: '12px', color: '#666' }}>
-            已上传的抽奖箱配置文件：
-            {uploadedFiles.map((file, index) => (
-              <span key={index} style={{ marginRight: '8px' }}>
-                {file.name}
-              </span>
-            ))}
-          </div>
-        )}
-      </Space>
-      {items.length > 0 && <Collapse accordion items={items} />}
+            {uploadedFiles.length > 0 && (
+              <div style={{ fontSize: '12px', color: '#666' }}>
+                已上传的抽奖箱配置文件：
+                {uploadedFiles.map((file, index) => (
+                  <span key={index} style={{ marginRight: '8px' }}>
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Space>
+          {items.length > 0 && <Collapse accordion items={items} />}
+        </>
+      )}
     </div>
   );
 };
