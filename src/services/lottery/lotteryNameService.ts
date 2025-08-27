@@ -125,7 +125,10 @@ export async function getLotteryBoxConfig(boxId: string): Promise<LotteryBoxConf
  * @param wikiMap 抽奖箱wiki结果映射
  * @returns 翻译后的wikiMap
  */
-export async function translateLotteryBoxNames(wikiMap: Record<string, any>): Promise<void> {
+export async function translateLotteryBoxNames(
+  wikiMap: Record<string, any>,
+  langMap: Record<string, string> = {},
+): Promise<void> {
   const boxNameMap = await fetchLotteryBoxNameMap();
   
   for (const wiki of Object.values(wikiMap)) {
@@ -143,6 +146,22 @@ export async function translateLotteryBoxNames(wikiMap: Record<string, any>): Pr
       }
     }
     
+    if (!translatedName) {
+      const base = noPrefix.replace(/_/g, '-');
+      const withHyphenDigits = base.replace(/([a-zA-Z])(\d)/g, '$1-$2');
+      const langKeys = [
+        `lobby.lottery.${withHyphenDigits}`,
+        `lobby.lottery.${base}`,
+        `lobby.lottery.${noPrefix}`
+      ];
+      for (const key of langKeys) {
+        if (langMap[key]) {
+          translatedName = langMap[key];
+          break;
+        }
+      }
+    }
+
     if (translatedName) {
       wiki.name = translatedName;
     }

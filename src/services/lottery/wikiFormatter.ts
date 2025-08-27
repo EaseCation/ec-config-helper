@@ -108,7 +108,11 @@ function formatWikiToString(name: string, data: {fallbackTimes: number; items: C
   return result;
 }
 
-function translateBoxName(wiki: WikiResult, boxNameMap: Record<string, string>): string {
+function translateBoxName(
+  wiki: WikiResult,
+  boxNameMap: Record<string, string>,
+  langMap: Record<string, string> = {},
+): string {
   const rawExc = typeof wiki.exc === 'string' ? wiki.exc : '';
   const noPrefix = rawExc.replace(/^exc_lottery_/, '');
   const firstDot = noPrefix.replace('_', '.');
@@ -117,6 +121,18 @@ function translateBoxName(wiki: WikiResult, boxNameMap: Record<string, string>):
   for (const key of candidates) {
     if (boxNameMap[key]) {
       return boxNameMap[key];
+    }
+  }
+  const base = noPrefix.replace(/_/g, '-');
+  const withHyphenDigits = base.replace(/([a-zA-Z])(\d)/g, '$1-$2');
+  const langKeys = [
+    `lobby.lottery.${withHyphenDigits}`,
+    `lobby.lottery.${base}`,
+    `lobby.lottery.${noPrefix}`
+  ];
+  for (const key of langKeys) {
+    if (langMap[key]) {
+      return langMap[key];
     }
   }
   return wiki.name;
@@ -140,7 +156,7 @@ export function buildWikiTables(
   const result: Record<string, string> = {};
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
-    const displayName = translateBoxName(wiki, boxNameMap);
+    const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name
@@ -171,7 +187,7 @@ export function buildMarkdownTables(
   const result: Record<string, string> = {};
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
-    const displayName = translateBoxName(wiki, boxNameMap);
+    const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name,
@@ -221,7 +237,7 @@ export function buildWikiCSVs(
   const result: Record<string, string> = {};
   for (const [exc, data] of Object.entries(withChance)) {
     const wiki = map[exc];
-    const displayName = translateBoxName(wiki, boxNameMap);
+    const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = data.items.map((i) => ({
       ...i,
       name: nameMap[i.name] || i.name

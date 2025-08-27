@@ -33,5 +33,11 @@ export async function fetchCommodityNameMap(): Promise<Record<string, string>> {
     const sampleName = map[sampleId];
   }
   
+  // 特殊处理：coin 和 exp 的翻译
+  map['coin'] = 'EC币';
+  map['exp'] = '大厅经验';
+  
   return map;
 }
+
+
