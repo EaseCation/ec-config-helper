@@ -391,16 +391,17 @@ const LotteryWikiPage: React.FC = () => {
         open={infoOpen}
         onCancel={() => setInfoOpen(false)}
         footer={null}
-        title="LotteryWikiTab 工作原理"
+        title="概率表计算原理"
         width={800}
       >
         <Typography style={{ maxHeight: '60vh', overflowY: 'auto', lineHeight: 1.7 }}>
           <Paragraph>
-            LotteryWikiTab 用于将抽奖配置导出为 Wiki 表格，主要流程如下：
+            抽奖箱概率表计算主要流程如下：
           </Paragraph>
           <ol>
             <li>读取 Notion 数据库的原始配置。</li>
-            <li>若上传 JSON 抽奖箱配置，则优先使用上传内容。</li>
+            <li>若上传 JSON 抽奖箱配置，则加入解析队列。</li>
+            <li>存在嵌套抽奖箱，需要递归解析。</li>
             <li>名称映射优先级：Notion → cfgLanguage → merchandise.json。</li>
             <li>分析并重新构建后可导出表格、CSV 与 Markdown。</li>
           </ol>
@@ -413,7 +414,7 @@ const LotteryWikiPage: React.FC = () => {
               <Text strong>语言库</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
             </li>
             <li>
-              <Text strong>密室杀手 merchandise</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json</Text>。
+              <Text strong>密室杀手商品配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json</Text>。
             </li>
           </ul>
         </Typography>
