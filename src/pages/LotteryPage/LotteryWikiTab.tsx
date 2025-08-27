@@ -93,16 +93,11 @@ const LotteryWikiTab: React.FC = () => {
         }
       }
       const wikiMap: Record<string, WikiResult> = {};
-      const hiddenLotteries: string[] = [];
-
       for (const key in grouped) {
         const formatted = formatLottery(grouped[key]);
         const wiki = formatted.wiki_result;
         if (wiki.name && wiki.gain.length) {
           wikiMap[wiki.exc] = wiki;
-          if (!wiki.display) {
-            hiddenLotteries.push(wiki.exc);
-          }
         }
       }
 
@@ -119,14 +114,7 @@ const LotteryWikiTab: React.FC = () => {
       setPercent(90);
       setNotionMap(wikiMap);
 
-      const filteredWikiMap: Record<string, WikiResult> = {};
-      for (const [key, value] of Object.entries(wikiMap)) {
-        if (!hiddenLotteries.includes(key)) {
-          filteredWikiMap[key] = value;
-        }
-      }
-
-      rebuild(filteredWikiMap, uploadedMap, nMap, bMap);
+      rebuild(wikiMap, uploadedMap, nMap, bMap);
       setPercent(100);
     } catch (err) {
       console.error(err);
