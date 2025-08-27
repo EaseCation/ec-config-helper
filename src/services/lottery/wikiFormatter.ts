@@ -18,6 +18,15 @@ interface DisplayItem {
   items: FlatItem[];
 }
 
+function csvEscape(v: string | number): string {
+  const s = String(v ?? '');
+  const startsWithSpecial = s.startsWith('=') || s.startsWith('+') || s.startsWith('-') || s.startsWith('@');
+  const needsQuote = /[",\r\n]/.test(s) || startsWithSpecial;
+  const safe = startsWithSpecial ? `'${s}` : s;
+  const escaped = safe.replace(/"/g, '""');
+  return needsQuote ? `"${escaped}"` : escaped;
+}
+
 // 递归展开所有奖品，计算权重
 function formatWikiSingleGain(
   entire: Record<string, WikiResult>,
@@ -149,3 +158,43 @@ export function buildWikiTables(
   return result;
 }
 
+
+export function buildWikiCSVs(
+  map: Record<string, WikiResult>,
+  nameMap: Record<string, string> = {},
+  boxNameMap: Record<string, string> = {}
+): Record<string, string> {
+  const display: Record<string, DisplayItem> = {};
+  for (const [key, item] of Object.entries(map)) {
+    if (item.display) {
+      display[key] = {
+        fallbackTimes: item.fallbackTimes,
+        items: formatWikiSingleGain(map, key)
+      };
+    }
+  }
+  const withChance = formatWikiChance(display);
+  const result: Record<string, string> = {};
+  for (const [exc, data] of Object.entries(withChance)) {
+    const wiki = map[exc];
+    const displayName = translateBoxName(wiki, boxNameMap);
+    const translatedItems = data.items.map((i) => ({
+      ...i,
+      name: nameMap[i.name] || i.name
+    }));
+    const lines: string[] = [];
+    if (data.fallbackTimes > 0) {
+      lines.push(`${csvEscape('保底次数')},${csvEscape(data.fallbackTimes)}`);
+    }
+    lines.push([csvEscape('奖励内容'), csvEscape('奖励数量'), csvEscape('概率')].join(','));
+    for (const item of translatedItems) {
+      lines.push([
+        csvEscape(item.name),
+        csvEscape(item.data),
+        csvEscape(item.chance)
+      ].join(','));
+    }
+    result[displayName] = lines.join('\n');
+  }
+  return result;
+}

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Collapse, Spin, Button, Typography, message } from 'antd';
-import { CopyOutlined } from '@ant-design/icons';
+import { Collapse, Spin, Button, Typography, message, Space } from 'antd';
+import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
 import { formatLottery, WikiResult } from '../../services/lottery/lotteryService';
-import { buildWikiTables } from '../../services/lottery/wikiFormatter';
+import { buildWikiTables, buildWikiCSVs } from '../../services/lottery/wikiFormatter';
 import { NOTION_DATABASE_LOTTERY } from '../../services/lottery/lotteryNotionQueries';
 import { fetchCommodityNameMap } from '../../services/commodity/commodityNameService';
 import { fetchLotteryBoxNameMap } from '../../services/lottery/lotteryNameService';
+import { downloadCSV } from '../../utils/download';
 
 const { Paragraph } = Typography;
 
@@ -16,6 +17,7 @@ const splitString = (input: string): string[] => input.split(', ').filter(Boolea
 const LotteryWikiTab: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tables, setTables] = useState<Record<string, string>>({});
+  const [csvs, setCsvs] = useState<Record<string, string>>({});
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
@@ -55,7 +57,9 @@ const LotteryWikiTab: React.FC = () => {
         ]);
 
         const map = buildWikiTables(wikiMap, nameMap, boxNameMap);
+        const csvMap = buildWikiCSVs(wikiMap, nameMap, boxNameMap);
         setTables(map);
+        setCsvs(csvMap);
       } catch (err) {
         console.error(err);
         messageApi.error('获取 Lottery 数据失败');
@@ -70,26 +74,44 @@ const LotteryWikiTab: React.FC = () => {
     return <Spin />;
   }
 
-  const items = Object.entries(tables).map(([name, table]) => ({
-    key: name,
-    label: name,
-    extra: (
-      <Button
-        size="small"
-        icon={<CopyOutlined />}
-        onClick={(e) => {
-          e.stopPropagation();
-          navigator.clipboard.writeText(table);
-          messageApi.success('已复制');
-        }}
-      />
-    ),
-    children: (
-      <Paragraph>
-        <pre style={{ whiteSpace: 'pre-wrap' }}>{table}</pre>
-      </Paragraph>
-    ),
-  }));
+  const items = Object.entries(tables).map(([name, table]) => {
+    const csv = csvs[name];
+    return {
+      key: name,
+      label: name,
+      extra: (
+        <Space>
+          <Button
+            size="small"
+            icon={<DownloadOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (csv) {
+                downloadCSV(csv, name);
+                messageApi.success('已下载');
+              } else {
+                messageApi.error('CSV 数据缺失');
+              }
+            }}
+          />
+          <Button
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(table);
+              messageApi.success('已复制');
+            }}
+          />
+        </Space>
+      ),
+      children: (
+        <Paragraph>
+          <pre style={{ whiteSpace: 'pre-wrap' }}>{table}</pre>
+        </Paragraph>
+      ),
+    };
+  });
 
   return (
     <>
