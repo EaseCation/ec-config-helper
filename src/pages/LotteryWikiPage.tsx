@@ -95,17 +95,28 @@ const LotteryWikiPage: React.FC = () => {
   const mergeNameMaps = (
     nMap: Record<string, string>,
     lMap: Record<string, string>,
-    kMap: Record<string, string>
+    kMap: Record<string, string>,
   ) => {
     const merged: Record<string, string> = { ...nMap };
+
+    // fill missing entries from language and killer maps
     for (const [k, v] of Object.entries(lMap)) {
       if (!merged[k]) merged[k] = v;
     }
     for (const [k, v] of Object.entries(kMap)) {
       if (!merged[k]) merged[k] = v;
     }
+
+    // fallback: if a name still contains "prefix.", resolve it via full id lookup
+    for (const [k, v] of Object.entries(merged)) {
+      if (v && v.includes('prefix.')) {
+        merged[k] = lMap[k] || kMap[k] || v;
+      }
+    }
+
     return merged;
   };
+
 
   const rebuild = (
     nMap: Record<string, WikiResult>,
