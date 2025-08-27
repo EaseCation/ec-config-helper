@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Collapse, Spin, Button, Typography, message, Space } from 'antd';
+import { Collapse, Button, Typography, message, Space, Progress } from 'antd';
 import { CopyOutlined, DownloadOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../../services/commonFormat';
@@ -19,16 +19,24 @@ const LotteryWikiTab: React.FC = () => {
   const [tables, setTables] = useState<Record<string, string>>({});
   const [csvs, setCsvs] = useState<Record<string, string>>({});
   const [messageApi, contextHolder] = message.useMessage();
+  const [percent, setPercent] = useState(0);
+  const [stage, setStage] = useState('初始化');
 
   useEffect(() => {
     const load = async () => {
       try {
+        setStage('检查 Notion Token');
+        setPercent(10);
         const token = getNotionToken();
         if (!token) {
           messageApi.error('尚未设置 Notion Token');
           return;
         }
+        setStage('获取 Lottery 页面');
+        setPercent(30);
         const pages = await fetchNotionAllPages(NOTION_DATABASE_LOTTERY, {});
+        setStage('解析 Lottery 数据');
+        setPercent(50);
         const grouped: Record<string, any[]> = {};
         for (const page of pages) {
           if (parseCheckbox(page.properties['禁用'])) continue;
@@ -50,20 +58,26 @@ const LotteryWikiTab: React.FC = () => {
           }
         }
 
+        setStage('获取名称映射');
+        setPercent(70);
         // 获取商品名称映射和抽奖箱名称映射
         const [nameMap, boxNameMap] = await Promise.all([
           fetchCommodityNameMap(),
           fetchLotteryBoxNameMap()
         ]);
 
+        setStage('构建 Wiki 数据');
+        setPercent(90);
         const map = buildWikiTables(wikiMap, nameMap, boxNameMap);
         const csvMap = buildWikiCSVs(wikiMap, nameMap, boxNameMap);
         setTables(map);
         setCsvs(csvMap);
+        setPercent(100);
       } catch (err) {
         console.error(err);
         messageApi.error('获取 Lottery 数据失败');
       } finally {
+        setStage('完成');
         setLoading(false);
       }
     };
@@ -71,7 +85,12 @@ const LotteryWikiTab: React.FC = () => {
   }, []);
 
   if (loading) {
-    return <Spin />;
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <Progress percent={percent} status={percent === 100 ? 'success' : 'active'} />
+        <div style={{ marginTop: 16 }}>{stage}</div>
+      </div>
+    );
   }
 
   const items = Object.entries(tables).map(([name, table]) => {
