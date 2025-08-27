@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal } from 'antd';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
@@ -395,23 +395,7 @@ const LotteryWikiPage: React.FC = () => {
         title="LotteryWikiTab 工作原理"
         width={800}
       >
-        <div style={{ whiteSpace: 'pre-wrap', maxHeight: '60vh', overflowY: 'auto' }}>
-          <p>
-            JSON 抽奖箱配置指
-            <code style={{ userSelect: 'all' }}>
-              CodeFunCore\CodeFunCore\src\main\resources\net\easecation\codefuncore\lottery\exchange
-            </code>
-            下的文件。
-          </p>
-          <p>语言库指 cfgLanguage 数据库（需导出为 JSON）。</p>
-          <p>
-            密室杀手商品配置指
-            <code style={{ userSelect: 'all' }}>
-              CodeFunCore\CodeFunCore\src\main\resources\net\easecation\codefuncore\unlockupgrade\mm\merchandise.json
-            </code>
-          。
-          </p>
-          <div style={{ borderTop: '1px solid #f0f0f0', margin: '16px 0' }} />
+        <div style={{ whiteSpace: 'pre-wrap', maxHeight: '60vh', overflowY: 'auto', lineHeight: 1.7 }}>
           {wikiDoc}
         </div>
       </Modal>
@@ -436,32 +420,47 @@ const LotteryWikiPage: React.FC = () => {
         <>
           <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
             <Space wrap size="small">
-              <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
-                <Button
-                  icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={uploadedFiles.length > 0 ? 'primary' : 'default'}
-                >
-                  {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
-                </Button>
-              </Upload>
+              <Space size={4} align="center">
+                <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
+                  <Button
+                    icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+                    type={uploadedFiles.length > 0 ? 'primary' : 'default'}
+                  >
+                    {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+                  </Button>
+                </Upload>
+                <Tooltip title="项目 CodeFunCore\\CodeFunCore\\src\\main\\resources\\net\\easecation\\codefuncore\\lottery\\exchange 目录下的 JSON 文件">
+                  <InfoCircleOutlined style={{ color: '#999' }} />
+                </Tooltip>
+              </Space>
 
-              <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
-                <Button
-                  icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={langFile ? 'primary' : 'default'}
-                >
-                  {langFile ? langFile.name : '上传语言配置'}
-                </Button>
-              </Upload>
+              <Space size={4} align="center">
+                <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
+                  <Button
+                    icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                    type={langFile ? 'primary' : 'default'}
+                  >
+                    {langFile ? langFile.name : '上传语言配置'}
+                  </Button>
+                </Upload>
+                <Tooltip title="cfgLanguage 数据库导出的 JSON">
+                  <InfoCircleOutlined style={{ color: '#999' }} />
+                </Tooltip>
+              </Space>
 
-              <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
-                <Button
-                  icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={killerFile ? 'primary' : 'default'}
-                >
-                  {killerFile ? killerFile.name : '上传密室杀手商品配置'}
-                </Button>
-              </Upload>
+              <Space size={4} align="center">
+                <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
+                  <Button
+                    icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                    type={killerFile ? 'primary' : 'default'}
+                  >
+                    {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+                  </Button>
+                </Upload>
+                <Tooltip title="CodeFunCore\\CodeFunCore\\src\\main\\resources\\net\\easecation\\codefuncore\\unlockupgrade\\mm\\merchandise.json">
+                  <InfoCircleOutlined style={{ color: '#999' }} />
+                </Tooltip>
+              </Space>
 
               <Button type="primary" icon={<PlayCircleOutlined />} onClick={load}>
                 开始
