@@ -12,7 +12,6 @@ import { fetchLotteryBoxNameMap } from '../services/lottery/lotteryNameService';
 import { parseLanguageConfig, parseKillerMerchandise } from '../services/lottery/extraNameParser';
 import { downloadCSV, downloadCSVAsZip, downloadMarkdown } from '../utils/download';
 import { parseLocalLotteryConfig } from '../services/lottery/configParser';
-import wikiDoc from '../../LotteryWikiTab_工作原理.md?raw';
 
 const { Paragraph, Title, Text } = Typography;
 
@@ -395,9 +394,29 @@ const LotteryWikiPage: React.FC = () => {
         title="LotteryWikiTab 工作原理"
         width={800}
       >
-        <div style={{ whiteSpace: 'pre-wrap', maxHeight: '60vh', overflowY: 'auto', lineHeight: 1.7 }}>
-          {wikiDoc}
-        </div>
+        <Typography style={{ maxHeight: '60vh', overflowY: 'auto', lineHeight: 1.7 }}>
+          <Paragraph>
+            LotteryWikiTab 用于将抽奖配置导出为 Wiki 表格，主要流程如下：
+          </Paragraph>
+          <ol>
+            <li>读取 Notion 数据库的原始配置。</li>
+            <li>若上传 JSON 抽奖箱配置，则优先使用上传内容。</li>
+            <li>名称映射优先级：Notion → cfgLanguage → merchandise.json。</li>
+            <li>分析并重新构建后可导出表格、CSV 与 Markdown。</li>
+          </ol>
+          <Title level={5} style={{ marginTop: 16 }}>文件来源说明</Title>
+          <ul>
+            <li>
+              <Text strong>JSON 抽奖箱配置</Text>：CodeFunCore 项目 <Text code>lottery/exchange</Text> 目录中的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>语言库</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>密室杀手 merchandise</Text>：CodeFunCore 项目 <Text code>unlockupgrade/mm/merchandise.json</Text>。
+            </li>
+          </ul>
+        </Typography>
       </Modal>
       <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0 24px' }}>
         <Title style={{ margin: 0, flex: 1 }}>概率表导出</Title>
@@ -429,9 +448,9 @@ const LotteryWikiPage: React.FC = () => {
                     {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
                   </Button>
                 </Upload>
-                <Tooltip title="项目 CodeFunCore\\CodeFunCore\\src\\main\\resources\\net\\easecation\\codefuncore\\lottery\\exchange 目录下的 JSON 文件">
-                  <InfoCircleOutlined style={{ color: '#999' }} />
-                </Tooltip>
+                  <Tooltip title="从 CodeFunCore 项目的 lottery/exchange 目录导出的 JSON 文件">
+                    <InfoCircleOutlined style={{ color: '#999' }} />
+                  </Tooltip>
               </Space>
 
               <Space size={4} align="center">
@@ -457,9 +476,9 @@ const LotteryWikiPage: React.FC = () => {
                     {killerFile ? killerFile.name : '上传密室杀手商品配置'}
                   </Button>
                 </Upload>
-                <Tooltip title="CodeFunCore\\CodeFunCore\\src\\main\\resources\\net\\easecation\\codefuncore\\unlockupgrade\\mm\\merchandise.json">
-                  <InfoCircleOutlined style={{ color: '#999' }} />
-                </Tooltip>
+                  <Tooltip title="CodeFunCore 项目中的 unlockupgrade/mm/merchandise.json 文件">
+                    <InfoCircleOutlined style={{ color: '#999' }} />
+                  </Tooltip>
               </Space>
 
               <Button type="primary" icon={<PlayCircleOutlined />} onClick={load}>
