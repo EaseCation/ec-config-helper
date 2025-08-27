@@ -18,7 +18,7 @@ interface DisplayItem {
   items: FlatItem[];
 }
 
-const DURATION_PREFIXES = ['prefix', 'ornament.', 'pet.', 'music.', 'zb.'];
+const DURATION_PREFIXES = ['prefix', 'ornament.', 'pet.', 'music.', 'zb.', 'sg.'];
 
 function formatSecondsToReadable(seconds: number): string {
   const units = [
