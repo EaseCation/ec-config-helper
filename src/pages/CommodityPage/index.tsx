@@ -1,26 +1,21 @@
 import React from "react";
-import useMessage from "antd/es/message/useMessage";
 import { Layout } from 'antd';
-import { Content, Header } from "antd/es/layout/layout";
-import { WorkshopPageContextProvider } from "../WorkshopPage/WorkshopPageContext";
+import { Content } from "antd/es/layout/layout";
+import { DirectoryContextProvider } from "../../context/DirectoryContext";
 import CommodityTitleBar from "./CommodityTitleBar";
-import LotteryContent from "./CommodityContent";
+import CommodityContent from "./CommodityContent";
 
-const LotteryPage2: React.FC = () => {
-
-  const [messageApi, messageContext] = useMessage();
-
+const CommodityPage: React.FC = () => {
   return (
-    <WorkshopPageContextProvider messageApi={messageApi}>
+    <DirectoryContextProvider>
       <Layout>
-        {messageContext}
         <CommodityTitleBar />
         <Content className={"responsive-padding"} style={{ paddingTop: 8 }}>
-          <LotteryContent />
+          <CommodityContent />
         </Content>
       </Layout>
-    </WorkshopPageContextProvider>
+    </DirectoryContextProvider>
   );
-}
+};
 
-export default LotteryPage2;
+export default CommodityPage;

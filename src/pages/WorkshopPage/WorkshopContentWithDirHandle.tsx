@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, Flex, Layout, Menu, MenuProps, Space, Spin, theme, Typography } from "antd";
+import { Button, Card, Flex, Layout, Menu, MenuProps, Space, Spin, theme, Typography, message } from "antd";
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import WorkshopTree, { DifferentPart } from "./WorkshopTree";
@@ -7,7 +7,7 @@ import { fetchNotionAllPages } from "../../notion/notionClient";
 import { formatWorkshop } from "../../services/workshop/workshopService";
 import { WorkshopCommodityConfig } from "../../types/workshop";
 import { CloudDownloadOutlined, LoadingOutlined, ReloadOutlined, SaveOutlined } from "@ant-design/icons";
-import { WorkshopPageContext } from "./WorkshopPageContext";
+import { DirectoryContext } from "../../context/DirectoryContext";
 import { NOTION_DATABASE_WORKSHOP, WORKSHOP_TYPES } from "../../services/workshop/workshopNotionQueries";
 
 const { Text } = Typography;
@@ -19,7 +19,7 @@ const WorkshopContentWithDirHandle: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const { dirHandle, ensurePermission, messageApi, readFile, writeFile } = React.useContext(WorkshopPageContext);
+  const { dirHandle, ensurePermission, readFile, writeFile } = React.useContext(DirectoryContext);
 
   const [currentType, setCurrentType] = useState<string>(Object.keys(WORKSHOP_TYPES)[0]);
   const [localJson, setLocalJson] = useState<WorkshopCommodityConfig | null>(null);
@@ -53,7 +53,7 @@ const WorkshopContentWithDirHandle: React.FC = () => {
         setLocalFileExists(false);
         setLocalJson(null);
       } else {
-        messageApi.error("读取本地文件出错: " + error?.message);
+        message.error("读取本地文件出错: " + error?.message);
       }
     } finally {
       setLoadingLocalJson(false);
@@ -64,20 +64,20 @@ const WorkshopContentWithDirHandle: React.FC = () => {
     if (dirHandle) {
       loadLocalFile().then();
     }
-  }, [dirHandle, currentType, ensurePermission, messageApi]);
+  }, [dirHandle, currentType, ensurePermission]);
 
   const handleLoadRemoteJson = async (type: string) => {
     setRemoteJsonLoadingList((prev) => [...prev, type]);
-    messageApi.open({ key: "processing", type: "loading", content: `正在从 Notion 加载 ${type} ...`, duration: 0 });
+    message.open({ key: "processing", type: "loading", content: `正在从 Notion 加载 ${type} ...`, duration: 0 });
 
     const filterConfig = WORKSHOP_TYPES[type];
     const pages = await fetchNotionAllPages(NOTION_DATABASE_WORKSHOP, { filter: filterConfig.filter, sorts: filterConfig.sorts });
     const workshopJson = formatWorkshop(type, pages);
 
     setRemoteJsonMap((prev) => ({ ...prev, [type]: workshopJson }));
-    messageApi.destroy("processing");
+    message.destroy("processing");
     setRemoteJsonLoadingList((prev) => prev.filter((item) => item !== type));
-    messageApi.success(`${type} 处理完成`);
+    message.success(`${type} 处理完成`);
   };
 
   useEffect(() => {
@@ -139,7 +139,7 @@ const WorkshopContentWithDirHandle: React.FC = () => {
 
   const handleSyncRemoteJson = async () => {
     if (!dirHandle) {
-      messageApi.error("请选择你的代码中的 commodity 文件夹");
+      message.error("请选择你的代码中的 commodity 文件夹");
     }
     if (localJson && remoteJsonMap[currentType]) {
       setSaving(true);
@@ -171,12 +171,12 @@ const WorkshopContentWithDirHandle: React.FC = () => {
         // 完成后，刷新localJson
         setLocalJson(newJson);
       } catch (error: any) {
-        messageApi.error("保存文件出错: " + error?.message);
+        message.error("保存文件出错: " + error?.message);
       } finally {
         setSaving(false);
       }
     } else {
-      messageApi.error("请先加载本地文件");
+      message.error("请先加载本地文件");
     }
   };
 

@@ -1,13 +1,13 @@
 import React, { useContext } from "react";
 import { Button, Card, Flex, Space, Typography } from "antd";
 import WorkshopContentWithDirHandle from "./WorkshopContentWithDirHandle";
-import { WorkshopPageContext } from "./WorkshopPageContext";
+import { DirectoryContext } from "../../context/DirectoryContext";
 import { FolderOpenOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
 const WorkshopContent: React.FC = () => {
-  const { dirHandle, chooseDirectory } = useContext(WorkshopPageContext);
+  const { dirHandle, chooseDirectory } = useContext(DirectoryContext);
 
   return dirHandle ? (
     <WorkshopContentWithDirHandle />

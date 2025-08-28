@@ -1,13 +1,13 @@
 import React, { useContext } from "react";
 import { Button, Card, Flex, Space, Typography } from "antd";
 import LotteryContentWithDirHandle from "./CommodityContentWithDirHandle";
-import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
+import { DirectoryContext } from "../../context/DirectoryContext";
 import { FolderOpenOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
 const LotteryContent: React.FC = () => {
-  const { dirHandle, chooseDirectory } = useContext(WorkshopPageContext);
+  const { dirHandle, chooseDirectory } = useContext(DirectoryContext);
 
   return dirHandle ? (
     <LotteryContentWithDirHandle />

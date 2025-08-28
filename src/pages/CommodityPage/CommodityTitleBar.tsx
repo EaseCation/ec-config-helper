@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 import { Typography, Flex, Button, Input } from "antd";
-import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
+import { DirectoryContext } from "../../context/DirectoryContext";
 
 const { Title, Text } = Typography;
 
 const CommodityTitleBar: React.FC = () => {
-  const { dirHandle, chooseDirectory, ensurePermission, messageApi } =
-    useContext(WorkshopPageContext);
+  const { dirHandle, chooseDirectory } =
+    useContext(DirectoryContext);
 
   return (
     <Flex vertical gap={12} className="responsive-padding">

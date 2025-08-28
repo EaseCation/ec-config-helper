@@ -1,33 +1,29 @@
 import React, { createContext, ReactNode, useCallback, useEffect, useState, } from "react";
 import localforage from "localforage";
-import type { MessageInstance } from "antd/es/message/interface";
+import { message } from "antd";
 
-export interface WorkshopPageContextType {
+export interface DirectoryContextType {
   dirHandle?: FileSystemDirectoryHandle;
   chooseDirectory: (mode?: FileSystemPermissionMode) => Promise<void>;
   ensurePermission: (mode?: FileSystemPermissionMode) => Promise<boolean>;
   readFile: (filePath: string) => Promise<string>;
-  writeFile: (fileName: string, content: string) => Promise<void>;
-  messageApi: MessageInstance;
+  writeFile: (filePath: string, content: string) => Promise<void>;
 }
 
-export const WorkshopPageContext = createContext<WorkshopPageContextType>({
+export const DirectoryContext = createContext<DirectoryContextType>({
   chooseDirectory: async () => {},
   ensurePermission: async () => false,
-  readFile: async () => '',
+  readFile: async () => "",
   writeFile: async () => {},
-  messageApi: {} as MessageInstance,
 });
 
-interface WorkshopPageContextProviderProps {
+interface DirectoryContextProviderProps {
   children: ReactNode;
-  messageApi: MessageInstance;
 }
 
-export const WorkshopPageContextProvider: React.FC<WorkshopPageContextProviderProps> = ({
-                                                                                          children,
-                                                                                          messageApi,
-                                                                                        }) => {
+export const DirectoryContextProvider: React.FC<DirectoryContextProviderProps> = ({
+                                                                                     children,
+                                                                                   }) => {
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle>();
 
   // 1. 从 localforage 获取已存的句柄
@@ -65,24 +61,22 @@ export const WorkshopPageContextProvider: React.FC<WorkshopPageContextProviderPr
   const ensurePermission = useCallback(
     async (mode: FileSystemPermissionMode = "read") => {
       if (!dirHandle) {
-        messageApi.info("尚未选择任何目录");
+        message.info("尚未选择任何目录");
         return false;
       }
-      // 先检查当前权限状态
       const currentPerm = await dirHandle.queryPermission({ mode });
       if (currentPerm === "granted") {
         return true;
       }
-      // 如果不是 granted，则请求权限
       const requestResult = await dirHandle.requestPermission({ mode });
       if (requestResult === "granted") {
         return true;
       } else {
-        messageApi.error("权限被拒绝，无法访问目录");
+        message.error("权限被拒绝，无法访问目录");
         return false;
       }
     },
-    [dirHandle, messageApi]
+    [dirHandle]
   );
 
   /**
@@ -93,24 +87,22 @@ export const WorkshopPageContextProvider: React.FC<WorkshopPageContextProviderPr
       try {
         const handle = await window.showDirectoryPicker();
         setDirHandle(handle);
-
-        // 选好后可直接请求权限
         const perm = await handle.requestPermission({ mode });
         if (perm === "granted") {
-          messageApi.success(`成功选择目录：${handle.name}`);
+          message.success(`成功选择目录：${handle.name}`);
         } else {
-          messageApi.warning(`选择了目录：${handle.name}，但未授予权限`);
+          message.warning(`选择了目录：${handle.name}，但未授予权限`);
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
-          messageApi.info("用户取消选择目录");
+          message.info("用户取消选择目录");
         } else {
-          messageApi.error("选择目录失败，该功能仅支持 Chrome");
+          message.error("选择目录失败，该功能仅支持 Chrome");
           console.error("chooseDirectory error:", error);
         }
       }
     },
-    [messageApi]
+    []
   );
 
   const readFile = useCallback(
@@ -149,7 +141,7 @@ export const WorkshopPageContextProvider: React.FC<WorkshopPageContextProviderPr
         }
       }
     },
-    [dirHandle, ensurePermission, messageApi]
+    [dirHandle, ensurePermission]
   );
 
   /**
@@ -161,7 +153,7 @@ export const WorkshopPageContextProvider: React.FC<WorkshopPageContextProviderPr
   const writeFile = useCallback(
     async (filePath: string, content: string) => {
       if (!dirHandle) {
-        messageApi.info("尚未选择任何目录");
+        message.info("尚未选择任何目录");
         return;
       }
 
@@ -188,27 +180,26 @@ export const WorkshopPageContextProvider: React.FC<WorkshopPageContextProviderPr
         await writable.write(content);
         await writable.close();
 
-        messageApi.success(`文件 ${filePath} 写入成功`);
+        message.success(`文件 ${filePath} 写入成功`);
       } catch (error) {
-        messageApi.error(`写入文件 ${filePath} 失败`);
+        message.error(`写入文件 ${filePath} 失败`);
         console.error("writeFile error:", error);
       }
     },
-    [dirHandle, ensurePermission, messageApi]
+    [dirHandle, ensurePermission]
   );
 
   return (
-    <WorkshopPageContext.Provider
+    <DirectoryContext.Provider
       value={{
         dirHandle,
         chooseDirectory,
         ensurePermission,
         readFile,
         writeFile,
-        messageApi,
       }}
     >
       {children}
-    </WorkshopPageContext.Provider>
+    </DirectoryContext.Provider>
   );
 };

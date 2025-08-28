@@ -1,25 +1,20 @@
 import React from "react";
-import useMessage from "antd/es/message/useMessage";
 import { Layout } from 'antd';
 import { Content } from "antd/es/layout/layout";
-import { WorkshopPageContextProvider } from "../WorkshopPage/WorkshopPageContext";
+import { DirectoryContextProvider } from "../../context/DirectoryContext";
 import LotteryTitleBar from "./LotteryTitleBar";
 import LotteryContent from "./LotteryContent";
 
 const LotteryPage2: React.FC = () => {
-
-  const [messageApi, messageContext] = useMessage();
-
   return (
-    <WorkshopPageContextProvider messageApi={messageApi}>
+    <DirectoryContextProvider>
       <Layout>
-        {messageContext}
         <LotteryTitleBar />
         <Content className={"responsive-padding"} style={{ paddingTop: 8 }}>
           <LotteryContent />
         </Content>
       </Layout>
-    </WorkshopPageContextProvider>
+    </DirectoryContextProvider>
   );
 }
 

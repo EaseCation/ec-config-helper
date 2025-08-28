@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { Button, Card, Flex, Layout, Tag, Space, Typography, theme, BackTop } from "antd";
+import { Button, Card, Flex, Layout, Tag, Space, Typography, theme, BackTop, message } from "antd";
 import { Content } from "antd/es/layout/layout";
 import CommodityTree from "./CommodityTree";
 import { formatCommodity } from '../../services/commodity/commodityService';
@@ -11,7 +11,7 @@ import {
   SaveOutlined,
   UpOutlined
 } from "@ant-design/icons";
-import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
+import { DirectoryContext } from "../../context/DirectoryContext";
 import { DifferentParts, compareCommodityData, CommodityData } from "../../services/commodity/compareCommodityData";
 
 const { Text } = Typography;
@@ -22,8 +22,8 @@ const LotteryContentWithDirHandle: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
-    useContext(WorkshopPageContext);
+  const { dirHandle, ensurePermission, readFile, writeFile } =
+    useContext(DirectoryContext);
 
   const [localJson, setLocalJson] = useState<CommodityData>();
   const [loadingLocalJson, setLoadingLocalJson] = useState(false);
@@ -45,9 +45,9 @@ const LotteryContentWithDirHandle: React.FC = () => {
     try {
       const data = await formatCommodity(NOTION_DATABASE_COMMODITY);
       setRemoteJson(data);
-      messageApi.success("成功获取 Notion 数据");
+      message.success("成功获取 Notion 数据");
     } catch (error: any) {
-      messageApi.error("获取 Notion 数据失败: " + error.message);
+      message.error("获取 Notion 数据失败: " + error.message);
     } finally {
       setLoadingRemoteJson(false);
     }
@@ -60,7 +60,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
       // 更新差异状态，进行高亮显示
       setDifferentParts(difference);
     } else {
-      messageApi.error("数据未加载完全，无法进行对比");
+      message.error("数据未加载完全，无法进行对比");
     }
   };
 
@@ -85,7 +85,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
       if (error?.message === "NotFoundError") {
         setLocalFileExists(false);
       } else {
-        messageApi.error("读取本地文件出错: " + error?.message);
+        message.error("读取本地文件出错: " + error?.message);
       }
     } finally {
       setLoadingLocalJson(false);
@@ -95,11 +95,11 @@ const LotteryContentWithDirHandle: React.FC = () => {
   // 🔹 4. 将 Notion 数据同步到本地 JSON 文件
   const handleSyncRemoteJson = async () => {
     if (!dirHandle) {
-      messageApi.error("请选择你的代码中的 commodity 文件夹");
+      message.error("请选择你的代码中的 commodity 文件夹");
       return;
     }
     if (!remoteJson) {
-      messageApi.error("请先加载 Notion 数据");
+      message.error("请先加载 Notion 数据");
       return;
     }
 
@@ -110,9 +110,9 @@ const LotteryContentWithDirHandle: React.FC = () => {
         JSON.stringify(remoteJson, null, 4)
       );
       setLocalJson(remoteJson);
-      messageApi.success("同步成功！");
+      message.success("同步成功！");
     } catch (error: any) {
-      messageApi.error("保存文件出错: " + error?.message);
+      message.error("保存文件出错: " + error?.message);
     } finally {
       setSaving(false);
     }

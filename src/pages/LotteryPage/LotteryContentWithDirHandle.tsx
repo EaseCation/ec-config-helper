@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, useMemo } from "react";
-import { Button, Card, Flex, Layout, Menu, Space, Tag, theme, BackTop, Checkbox } from "antd";
+import { Button, Card, Flex, Layout, Menu, Space, Tag, theme, BackTop, Checkbox, message } from "antd";
 import { Content } from "antd/es/layout/layout";
 import {LotteryJsonViewer} from "./LotteryTree";
 import Sider from "antd/es/layout/Sider";
@@ -11,7 +11,7 @@ import {
   SaveOutlined,
   UpOutlined
 } from "@ant-design/icons";
-import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
+import { DirectoryContext } from "../../context/DirectoryContext";
 import { NOTION_DATABASE_LOTTERY, LotteryConfig, areLotteryConfigsEqual, DifferentParts } from "../../services/lottery/lotteryNotionQueries";
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
 
@@ -20,8 +20,8 @@ const LotteryContentWithDirHandle: React.FC = () => {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
-  const { dirHandle, ensurePermission, messageApi, readFile, writeFile } =
-    useContext(WorkshopPageContext);
+  const { dirHandle, ensurePermission, readFile, writeFile } =
+    useContext(DirectoryContext);
 
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);// 用来记录哪些 key 被勾选
   const [currentTypes, setCurrentTypes] = useState<string[]>([]); // Local types
@@ -128,7 +128,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
       setCurrentTypes(format.types);
       setCurrentType(format.types[0]); // 默认选中第一个
     } catch (error: any) {
-      messageApi.error("读取 notion.json 文件出错: " + error?.message);
+      message.error("读取 notion.json 文件出错: " + error?.message);
     }
   };
 
@@ -204,7 +204,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
           if (error?.message === "NotFoundError") {
             allLocalJsonData[type] = null;  // 如果文件不存在，存储 null
           } else {
-            messageApi.error(`读取 ${type}.json 文件出错: ${error?.message}`);  // 错误提示
+            message.error(`读取 ${type}.json 文件出错: ${error?.message}`);  // 错误提示
           }
         }
       }
@@ -212,7 +212,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
       setLocalFileExists(true);  // 文件存在标记
       updateItems();//更新侧边栏
     } catch (error: any) {
-      messageApi.error("读取本地文件出错: " + error?.message);
+      message.error("读取本地文件出错: " + error?.message);
     } finally {
       setLoadingLocalJson(false);
     }
@@ -231,9 +231,9 @@ const LotteryContentWithDirHandle: React.FC = () => {
     setRemoteJsonLoading(true);
     try {
       await refetch();
-      messageApi.success(`${currentType} 远端数据加载完成`);
+      message.success(`${currentType} 远端数据加载完成`);
     } catch (error: any) {
-      messageApi.error("获取远端数据失败: " + error.message);
+      message.error("获取远端数据失败: " + error.message);
     } finally {
       setRemoteJsonLoading(false);
     }
@@ -245,7 +245,7 @@ const LotteryContentWithDirHandle: React.FC = () => {
     const keysToSync  = checkedKeys.length > 0 ? checkedKeys : currentType ? [currentType] : [];
 
     if (!dirHandle || keysToSync.length === 0) {
-      messageApi.error("请先选择至少一个要同步的 Key，或加载 Notion 数据");
+      message.error("请先选择至少一个要同步的 Key，或加载 Notion 数据");
       return;
     }
 
@@ -298,9 +298,9 @@ const LotteryContentWithDirHandle: React.FC = () => {
 
       setCheckedKeys([]);
       // 提示成功
-      messageApi.success(`已同步 ${keysToSync.join(", ")} 到本地！`);
+      message.success(`已同步 ${keysToSync.join(", ")} 到本地！`);
     } catch (error: any) {
-      messageApi.error("保存文件出错: " + error?.message);
+      message.error("保存文件出错: " + error?.message);
     } finally {
       setSaving(false);
     }
