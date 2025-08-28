@@ -5,20 +5,18 @@ import { WorkshopPageContext } from "../WorkshopPage/WorkshopPageContext";
 const { Title, Text } = Typography;
 
 const LotteryTitleBar: React.FC = () => {
-  const { dirHandle, chooseDirectory, ensurePermission, messageApi } =
-    useContext(WorkshopPageContext);
+  const { dirHandle, chooseDirectory } = useContext(WorkshopPageContext);
 
   return (
     <Flex vertical gap={12} className="responsive-padding">
       <Title style={{ margin: "8px 0 0" }}>抽奖箱 JSON 同步</Title>
 
-      {/* 让 Text 和 Input 在同一行 */}
       <Flex align="center" gap={12}>
         <Input
-          placeholder="请输入抽奖箱 Database ID"
           value="9e151c3d30b14d1bae8dd972d17198c1"
           style={{ width: 400 }}
           addonBefore="抽奖箱 Database ID："
+          disabled
         />
         {dirHandle && (
           <Text>
@@ -31,6 +29,6 @@ const LotteryTitleBar: React.FC = () => {
       </Flex>
     </Flex>
   );
-}
+};
 
 export default LotteryTitleBar;
