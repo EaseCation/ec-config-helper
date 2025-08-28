@@ -18,7 +18,7 @@ interface DisplayItem {
   items: FlatItem[];
 }
 
-const DURATION_PREFIXES = ['prefix', 'ornament.', 'pet.', 'music.', 'zb.', 'sg.'];
+const DURATION_PREFIXES = ['prefix', 'ornament.', 'pet.', 'music.', 'zb.', 'sg.','attack-eff.'];
 
 function formatSecondsToReadable(seconds: number): string {
   const units = [
@@ -173,7 +173,7 @@ function translateItems(
   return items.map((i) => {
     const key = i.name;
     const rawName = nameMap[key] || nameMap[`shop.${key}`] || key;
-    const cleanName = key.startsWith('prefix') ? stripColorCodes(rawName) : rawName;
+    const cleanName = stripColorCodes(rawName);
     return { ...i, name: cleanName, data: formatItemData(key, Number(i.data)) };
   });
 }
@@ -227,7 +227,7 @@ export function buildMarkdownTables(
     const displayName = translateBoxName(wiki, boxNameMap, nameMap);
     const translatedItems = translateItems(data.items, nameMap);
     const lines: string[] = [];
-    lines.push(`# ${displayName}`);
+    lines.push(`## ${displayName}`);
     lines.push('');
     if (data.fallbackTimes > 0) {
       lines.push(

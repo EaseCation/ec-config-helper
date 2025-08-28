@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal } from 'antd';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal, Popconfirm, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
 import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
@@ -23,8 +23,8 @@ const renderMarkdown = (md: string) => {
   const lines = md.split(/\r?\n/);
   const elements: React.ReactNode[] = [];
   let idx = 0;
-  if (lines[idx]?.startsWith('# ')) {
-    elements.push(<Title level={4} key="title">{lines[idx].replace(/^# /, '')}</Title>);
+  if (lines[idx]?.startsWith('## ')) {
+    elements.push(<Title level={4} key="title">{lines[idx].replace(/^## /, '')}</Title>);
     idx++;
   }
   if (lines[idx]?.startsWith('>')) {
@@ -219,11 +219,8 @@ const LotteryWikiPage: React.FC = () => {
 
   const handleStart = () => {
     if (!langFile || !killerFile) {
-      Modal.confirm({
-        title: '缺少翻译配置',
-        content: '未上传语言配置或密室杀手配置，可能会导致部分名称未翻译，确定继续吗？',
-        onOk: load,
-      });
+      // 如果没有上传必要的配置文件，直接调用 load
+      load();
     } else {
       load();
     }
@@ -345,9 +342,11 @@ const LotteryWikiPage: React.FC = () => {
   };
 
   const handleExportAll: MenuProps['onClick'] = ({ key }) => {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
     if (key === 'csv') {
       if (Object.keys(csvs).length) {
-        downloadCSVAsZip(csvs, 'lottery_csv');
+        downloadCSVAsZip(csvs, `lottery_csv_${today}`);
         messageApi.success('已下载全部 CSV');
       } else {
         messageApi.error('CSV 数据缺失');
@@ -355,7 +354,15 @@ const LotteryWikiPage: React.FC = () => {
       return;
     }
 
-    const header = `# EaseCation 抽奖箱概率表\n> 更新时间：${new Date().toISOString().replace('T', ' ').slice(0, 19)}\n\n`;
+    const header = `# EaseCation 抽奖箱概率表\n> 更新时间：${new Date().toLocaleString('zh-CN', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })}\n\n`;
     const body = Object.keys(tables)
       .map((name) => markdowns[name])
       .filter(Boolean)
@@ -371,7 +378,7 @@ const LotteryWikiPage: React.FC = () => {
       navigator.clipboard.writeText(combined);
       messageApi.success('已复制全部 Markdown');
     } else if (key === 'markdown-download') {
-      downloadMarkdown(combined, 'EaseCation 抽奖箱概率表');
+      downloadMarkdown(combined, `EaseCation 抽奖箱概率表_${today}`);
       messageApi.success('已下载全部 Markdown');
     }
   };
@@ -403,9 +410,11 @@ const LotteryWikiPage: React.FC = () => {
               ],
               onClick: ({ key, domEvent }) => {
                 domEvent.stopPropagation();
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                
                 if (key === 'csv') {
                   if (csv) {
-                    downloadCSV(csv, name);
+                    downloadCSV(csv, `${name}_${today}`);
                     messageApi.success('已下载');
                   } else {
                     messageApi.error('CSV 数据缺失');
@@ -419,7 +428,7 @@ const LotteryWikiPage: React.FC = () => {
                   }
                 } else if (key === 'markdown-download') {
                   if (md) {
-                    downloadMarkdown(md, name);
+                    downloadMarkdown(md, `${name}_${today}`);
                     messageApi.success('Markdown 已下载');
                   } else {
                     messageApi.error('Markdown 数据缺失');
@@ -474,7 +483,10 @@ const LotteryWikiPage: React.FC = () => {
               <Text strong>JSON 抽奖箱配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange</Text> 目录中的 JSON 文件。
             </li>
             <li>
-              <Text strong>语言库</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
+              <Text strong>语言库配置</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>商品语言库配置</Text>：<Text code>cfgLanguageMerchandise</Text> 数据库导出的 JSON 文件。
             </li>
             <li>
               <Text strong>密室杀手商品配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json</Text>。
@@ -490,77 +502,104 @@ const LotteryWikiPage: React.FC = () => {
         />
       </div>
 
-      {loading ? (
-        <div style={{ textAlign: 'center', paddingTop: '2rem' }}>
-          <Progress
-            percent={percent}
-            status={stageIndex === stages.length - 1 ? 'success' : 'active'}
-            strokeColor={{ from: '#108ee9', to: '#87d068' }}
-          />
-          <div style={{ marginTop: 16 }}>{currentStage}</div>
-        </div>
-      ) : (
-        <>
-          <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
-            <Space wrap size="small">
-              <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple>
-                <Button
-                  icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={uploadedFiles.length > 0 ? 'primary' : 'default'}
-                >
-                  {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
-                </Button>
-              </Upload>
+             <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
+         <Space wrap size="small">
+           <Tooltip title="CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange 目录中的 JSON 文件">
+             <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple disabled={loading}>
+               <Button
+                 icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={uploadedFiles.length > 0 ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
 
-              <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json">
-                <Button
-                  icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={langFile ? 'primary' : 'default'}
-                >
-                  {langFile ? langFile.name : '上传语言配置'}
-                </Button>
-              </Upload>
+           <Tooltip title="cfgLanguage 数据库导出的 JSON 文件">
+             <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" disabled={loading}>
+               <Button
+                 icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={langFile ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {langFile ? langFile.name : '上传语言库配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
 
-              <Upload beforeUpload={handleLangMerchUpload} showUploadList={false} accept=".json">
-                <Button
-                  icon={langMerchFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={langMerchFile ? 'primary' : 'default'}
-                >
-                  {langMerchFile ? langMerchFile.name : '上传LanguageMerchandise'}
-                </Button>
-              </Upload>
+           <Tooltip title="cfgLanguageMerchandise 数据库导出的 JSON 文件">
+             <Upload beforeUpload={handleLangMerchUpload} showUploadList={false} accept=".json" disabled={loading}>
+               <Button
+                 icon={langMerchFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={langMerchFile ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {langMerchFile ? langMerchFile.name : '上传商品语言库配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
 
-              <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json">
-                <Button
-                  icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
-                  type={killerFile ? 'primary' : 'default'}
-                >
-                  {killerFile ? killerFile.name : '上传密室杀手商品配置'}
-                </Button>
-              </Upload>
+           <Tooltip title="CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json">
+             <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json" disabled={loading}>
+               <Button
+                 icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={killerFile ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
 
-              <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleStart}>
-                开始
-              </Button>
-              <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>
-                <Button icon={<ExportOutlined />}>导出</Button>
-              </Dropdown>
-            </Space>
+           {!langFile || !langMerchFile || !killerFile ? (
+             <Popconfirm
+               title="缺少翻译配置"
+               description="缺少翻译配置可能会导致部分名称未翻译，确定继续吗？"
+               onConfirm={load}
+               okText="确定"
+               cancelText="取消"
+               disabled={loading}
+             >
+               <Button type="primary" icon={<PlayCircleOutlined />} disabled={loading}>
+                 开始
+               </Button>
+             </Popconfirm>
+           ) : (
+             <Button type="primary" icon={<PlayCircleOutlined />} onClick={load} disabled={loading}>
+               开始
+             </Button>
+           )}
+           
+           <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }} disabled={loading}>
+             <Button icon={<ExportOutlined />} disabled={loading}>导出</Button>
+           </Dropdown>
+         </Space>
+         {uploadedFiles.length > 0 && (
+           <div style={{ fontSize: '12px', color: '#666' }}>
+             已上传的抽奖箱配置文件：
+             {uploadedFiles.map((file, index) => (
+               <span key={index} style={{ marginRight: '8px' }}>
+                 {file.name}
+               </span>
+             ))}
+           </div>
+         )}
+         {loading && (
+           <div style={{ textAlign: 'center', paddingTop: '1rem', paddingBottom: '1rem' }}>
+             <Progress
+               percent={percent}
+               status={stageIndex === stages.length - 1 ? 'success' : 'active'}
+               strokeColor={{ from: '#108ee9', to: '#87d068' }}
+             />
+             <div style={{ marginTop: 16 }}>{currentStage}</div>
+           </div>
+         )}
 
-            {uploadedFiles.length > 0 && (
-              <div style={{ fontSize: '12px', color: '#666' }}>
-                已上传的抽奖箱配置文件：
-                {uploadedFiles.map((file, index) => (
-                  <span key={index} style={{ marginRight: '8px' }}>
-                    {file.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </Space>
-          {items.length > 0 && <Collapse accordion items={items} />}
-        </>
-      )}
+
+       </Space>
+       
+       {items.length > 0 && <Collapse accordion items={items} />}
     </div>
   );
 };
