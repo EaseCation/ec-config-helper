@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Button, Form, Input, Space, Typography } from 'antd';
 import { useNotionToken } from "../hooks/useNotionToken";
 
@@ -32,10 +32,9 @@ const SettingsPage: React.FC = () => {
             { pattern: /^secret_/, message: 'Notion Token 以 secret_ 开头' },
           ]}
         >
-          <Input
-            type={'password'}
+          <Input.Password
             placeholder="请输入 Notion Token"
-            style={{ width: 500 }}
+            style={{ width: '100%', maxWidth: 500 }}
           />
         </Form.Item>
         <Space>
