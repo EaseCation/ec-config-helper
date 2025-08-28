@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal } from 'antd';
 import type { MenuProps } from 'antd';
 import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
@@ -91,6 +91,7 @@ const LotteryWikiPage: React.FC = () => {
   const [langFile, setLangFile] = useState<{name: string, size: number} | null>(null);
   const [killerMap, setKillerMap] = useState<Record<string, string>>({});
   const [killerFile, setKillerFile] = useState<{name: string, size: number} | null>(null);
+  const uploadBatchRef = useRef({ total: 0, done: 0 });
 
   const mergeNameMaps = (
     nMap: Record<string, string>,
@@ -210,7 +211,23 @@ const LotteryWikiPage: React.FC = () => {
     }
   };
 
-  const handleUpload = (file: File) => {
+  const handleStart = () => {
+    if (!langFile || !killerFile) {
+      Modal.confirm({
+        title: '缺少翻译配置',
+        content: '未上传语言配置或密室杀手配置，可能会导致部分名称未翻译，确定继续吗？',
+        onOk: load,
+      });
+    } else {
+      load();
+    }
+  };
+
+  const handleUpload = (file: File, fileList: File[]) => {
+    if (uploadBatchRef.current.total === 0) {
+      uploadBatchRef.current.total = fileList.length;
+      uploadBatchRef.current.done = 0;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
@@ -223,16 +240,21 @@ const LotteryWikiPage: React.FC = () => {
           }
           return newMap;
         });
-        
+
         // 添加文件到列表
         setUploadedFiles(prev => [...prev, {
           name: file.name,
           size: file.size
         }]);
-        
-        messageApi.success('JSON 上传成功');
       } catch (err) {
         messageApi.error('JSON 解析失败');
+      } finally {
+        uploadBatchRef.current.done += 1;
+        if (uploadBatchRef.current.done === uploadBatchRef.current.total) {
+          messageApi.success(`${uploadBatchRef.current.total}个文件上传完成`);
+          uploadBatchRef.current.total = 0;
+          uploadBatchRef.current.done = 0;
+        }
       }
     };
     reader.readAsText(file);
@@ -299,28 +321,27 @@ const LotteryWikiPage: React.FC = () => {
       } else {
         messageApi.error('CSV 数据缺失');
       }
-    } else if (key === 'markdown-copy') {
-      const combined = Object.keys(tables)
-        .map((name) => markdowns[name])
-        .filter(Boolean)
-        .join('\n\n');
-      if (combined) {
-        navigator.clipboard.writeText(combined);
-        messageApi.success('已复制全部 Markdown');
-      } else {
-        messageApi.error('Markdown 数据缺失');
-      }
+      return;
+    }
+
+    const header = `# EaseCation 抽奖箱概率表\n> 更新时间：${new Date().toISOString().replace('T', ' ').slice(0, 19)}\n\n`;
+    const body = Object.keys(tables)
+      .map((name) => markdowns[name])
+      .filter(Boolean)
+      .join('\n\n');
+    const combined = header + body;
+
+    if (!body) {
+      messageApi.error('Markdown 数据缺失');
+      return;
+    }
+
+    if (key === 'markdown-copy') {
+      navigator.clipboard.writeText(combined);
+      messageApi.success('已复制全部 Markdown');
     } else if (key === 'markdown-download') {
-      const combined = Object.keys(tables)
-        .map((name) => markdowns[name])
-        .filter(Boolean)
-        .join('\n\n');
-      if (combined) {
-        downloadMarkdown(combined, 'lottery_markdown');
-        messageApi.success('已下载全部 Markdown');
-      } else {
-        messageApi.error('Markdown 数据缺失');
-      }
+      downloadMarkdown(combined, 'EaseCation 抽奖箱概率表');
+      messageApi.success('已下载全部 Markdown');
     }
   };
 
@@ -478,7 +499,7 @@ const LotteryWikiPage: React.FC = () => {
                 </Button>
               </Upload>
 
-              <Button type="primary" icon={<PlayCircleOutlined />} onClick={load}>
+              <Button type="primary" icon={<PlayCircleOutlined />} onClick={handleStart}>
                 开始
               </Button>
               <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }}>

@@ -22,8 +22,6 @@ const DURATION_PREFIXES = ['prefix', 'ornament.', 'pet.', 'music.', 'zb.', 'sg.'
 
 function formatSecondsToReadable(seconds: number): string {
   const units = [
-    { label: '年', value: 365 * 24 * 3600 },
-    { label: '月', value: 30 * 24 * 3600 },
     { label: '天', value: 24 * 3600 },
     { label: '小时', value: 3600 },
     { label: '分钟', value: 60 }
@@ -229,7 +227,6 @@ export function buildMarkdownTables(
     const translatedItems = translateItems(data.items, nameMap);
     const lines: string[] = [];
     lines.push(`# ${displayName}`);
-    lines.push(`> 更新时间：${new Date().toISOString().replace('T', ' ').slice(0, 19)}`);
     lines.push('');
     if (data.fallbackTimes > 0) {
       lines.push(
