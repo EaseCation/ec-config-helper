@@ -13,7 +13,9 @@ const WelcomePage: React.FC = () => {
   return (
     <Layout style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100vh' }}>
       <Content style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', flex: 1, paddingBottom: 80 }}>
-        <Title level={2}>欢迎使用 EC 配置生成工具</Title>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 32 }}>
+          <Title level={2} style={{ margin: 0, flex: 1 }}>欢迎使用 EC 配置生成工具</Title>
+        </div>
         <Paragraph style={{ marginBottom: 32 }}>
           请先输入 Notion Token 以继续使用
         </Paragraph>
