@@ -477,7 +477,85 @@ const LotteryWikiPage: React.FC = () => {
             <li>名称映射优先级：Notion → cfgLanguage → merchandise.json。</li>
             <li>分析并重新构建后可导出表格、CSV 与 Markdown。</li>
           </ol>
-          <Title level={5} style={{ marginTop: 16 }}>文件来源说明</Title>
+          
+          <Title level={5} style={{ marginTop: 16 }}>详细解析逻辑</Title>
+          
+          <Title level={5}>1. Notion 数据解析</Title>
+          <Paragraph>
+            从 Notion 数据库读取抽奖箱配置，解析以下属性：
+          </Paragraph>
+          <ul>
+            <li><Text code>exchange_id</Text>：抽奖箱唯一标识符</li>
+            <li><Text code>需要钥匙？</Text>：是否需要消耗钥匙</li>
+            <li><Text code>whenCallFallback</Text>：保底触发次数</li>
+            <li><Text code>展示到wiki？</Text>：是否在wiki中显示</li>
+            <li><Text code>wikiDisplayName</Text>：wiki显示名称</li>
+            <li><Text code>gainExchangeID</Text>：奖品抽奖箱ID（嵌套抽奖箱）</li>
+            <li><Text code>权重</Text>：奖品权重</li>
+            <li><Text code>数量</Text>：奖品数量</li>
+            <li><Text code>商品全称</Text>：奖品名称</li>
+            <li><Text code>保底？</Text>：是否为保底奖品</li>
+          </ul>
+          
+          <Title level={5}>2. JSON 配置文件解析</Title>
+          <Paragraph>
+            <Text strong>本地抽奖箱配置解析：</Text>
+          </Paragraph>
+          <ul>
+            <li>解析 <Text code>fallbackTimes</Text>：保底次数</li>
+            <li>解析 <Text code>gain</Text> 数组中的奖品信息</li>
+            <li>支持 <Text code>subExchanges</Text>（嵌套抽奖箱）</li>
+            <li>支持 <Text code>merchandises</Text>（商品奖励）</li>
+            <li>支持 <Text code>coin</Text>（EC币奖励）</li>
+            <li>支持 <Text code>exp</Text>（经验奖励）</li>
+          </ul>
+          
+          <Paragraph>
+            <Text strong>语言配置解析：</Text>
+          </Paragraph>
+          <ul>
+            <li>cfgLanguage：解析 <Text code>key</Text> 和 <Text code>zh/zh_TW/en</Text> 字段</li>
+            <li>cfgLanguageMerchandise：解析商品语言映射</li>
+            <li>密室杀手商品：解析 <Text code>merchandise</Text> 和 <Text code>name</Text> 字段</li>
+          </ul>
+          
+          <Title level={5}>3. 名称映射逻辑</Title>
+          <Paragraph>
+            名称解析优先级顺序：
+          </Paragraph>
+          <ol>
+            <li>Notion 商品名称数据库（排除 music 类型商品）</li>
+            <li>cfgLanguage 语言配置</li>
+            <li>cfgLanguageMerchandise 商品语言配置</li>
+            <li>密室杀手商品配置</li>
+            <li>特殊处理：coin → EC币，exp → 大厅经验</li>
+          </ol>
+          
+          <Title level={5}>4. 抽奖箱名称解析</Title>
+          <Paragraph>
+            抽奖箱名称解析策略：
+          </Paragraph>
+          <ul>
+            <li>从抽奖箱配置数据库获取名称</li>
+            <li>支持多种属性类型：rich_text、title、relation</li>
+            <li>递归查找关联的抽奖箱配置</li>
+            <li>语言键查找：lobby.lottery.&#123;name&#125;</li>
+            <li>ID 格式转换：下划线转点号、连字符等</li>
+          </ul>
+          
+          <Title level={5}>5. 概率计算与格式化</Title>
+          <Paragraph>
+            Wiki 表格生成逻辑：
+          </Paragraph>
+          <ul>
+            <li>递归展开嵌套抽奖箱，计算实际权重</li>
+            <li>处理保底机制和条件逻辑</li>
+            <li>格式化持续时间（天/小时/分钟/秒）</li>
+            <li>移除颜色代码和格式化字符</li>
+            <li>生成 Markdown 表格和 CSV 数据</li>
+          </ul>
+          
+          <Title level={5}>6. 文件来源说明</Title>
           <ul>
             <li>
               <Text strong>JSON 抽奖箱配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange</Text> 目录中的 JSON 文件。

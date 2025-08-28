@@ -174,7 +174,9 @@ function translateItems(
     const key = i.name;
     const rawName = nameMap[key] || nameMap[`shop.${key}`] || key;
     const cleanName = stripColorCodes(rawName);
-    return { ...i, name: cleanName, data: formatItemData(key, Number(i.data)) };
+    // 删除 "-Notion" 后缀
+    const finalName = cleanName.replace(/-Notion$/, '');
+    return { ...i, name: finalName, data: formatItemData(key, Number(i.data)) };
   });
 }
 
