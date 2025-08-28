@@ -168,12 +168,13 @@ function translateBoxName(
 
 function translateItems(
   items: ChanceItem[],
-  nameMap: Record<string, string>
+  nameMap: Record<string, string>,
 ): ChanceItem[] {
   return items.map((i) => {
-    const rawName = nameMap[i.name] || i.name;
-    const cleanName = i.name.startsWith('prefix') ? stripColorCodes(rawName) : rawName;
-    return { ...i, name: cleanName, data: formatItemData(i.name, Number(i.data)) };
+    const key = i.name;
+    const rawName = nameMap[key] || nameMap[`shop.${key}`] || key;
+    const cleanName = key.startsWith('prefix') ? stripColorCodes(rawName) : rawName;
+    return { ...i, name: cleanName, data: formatItemData(key, Number(i.data)) };
   });
 }
 

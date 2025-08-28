@@ -22,7 +22,10 @@ export async function fetchCommodityNameMap(): Promise<Record<string, string>> {
 
     const id = String(flatProperty(idProp) || '');
     const name = String(flatProperty(nameProp) || '');
-    
+
+    // music 类型商品不使用 Notion 名称
+    if (id.startsWith('music.')) continue;
+
     if (id && name) {
       map[id] = name;
     }

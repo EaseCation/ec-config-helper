@@ -89,6 +89,8 @@ const LotteryWikiPage: React.FC = () => {
   const [boxNameMap, setBoxNameMap] = useState<Record<string, string>>({});
   const [langMap, setLangMap] = useState<Record<string, string>>({});
   const [langFile, setLangFile] = useState<{name: string, size: number} | null>(null);
+  const [langMerchMap, setLangMerchMap] = useState<Record<string, string>>({});
+  const [langMerchFile, setLangMerchFile] = useState<{name: string, size: number} | null>(null);
   const [killerMap, setKillerMap] = useState<Record<string, string>>({});
   const [killerFile, setKillerFile] = useState<{name: string, size: number} | null>(null);
   const uploadBatchRef = useRef({ total: 0, done: 0 });
@@ -97,11 +99,15 @@ const LotteryWikiPage: React.FC = () => {
     nMap: Record<string, string>,
     lMap: Record<string, string>,
     kMap: Record<string, string>,
+    mMap: Record<string, string> = {},
   ) => {
     const merged: Record<string, string> = { ...nMap };
 
-    // fill missing entries from language and killer maps
+    // fill missing entries from language maps and killer map
     for (const [k, v] of Object.entries(lMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    for (const [k, v] of Object.entries(mMap)) {
       if (!merged[k]) merged[k] = v;
     }
     for (const [k, v] of Object.entries(kMap)) {
@@ -111,7 +117,7 @@ const LotteryWikiPage: React.FC = () => {
     // fallback: if a name still contains "prefix.", resolve it via full id lookup
     for (const [k, v] of Object.entries(merged)) {
       if (v && v.includes('prefix.')) {
-        merged[k] = lMap[k] || kMap[k] || v;
+        merged[k] = lMap[k] || mMap[k] || kMap[k] || v;
       }
     }
 
@@ -194,7 +200,7 @@ const LotteryWikiPage: React.FC = () => {
         fetchLotteryBoxNameMap()
       ]);
       setNotionNameMap(nMap);
-      const mergedNameMap = mergeNameMaps(nMap, langMap, killerMap);
+      const mergedNameMap = mergeNameMaps(nMap, langMap, killerMap, langMerchMap);
       setNameMap(mergedNameMap);
       setBoxNameMap(bMap);
 
@@ -273,7 +279,7 @@ const LotteryWikiPage: React.FC = () => {
           name: file.name,
           size: file.size
         });
-        const merged = mergeNameMaps(notionNameMap, parsed, killerMap);
+        const merged = mergeNameMaps(notionNameMap, parsed, killerMap, langMerchMap);
         setNameMap(merged);
         if (Object.keys(notionMap).length) {
           rebuild(notionMap, uploadedMap, merged, boxNameMap);
@@ -281,6 +287,31 @@ const LotteryWikiPage: React.FC = () => {
         messageApi.success('语言配置 JSON 上传成功');
       } catch (err) {
         messageApi.error('语言配置解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleLangMerchUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseLanguageConfig(json);
+        setLangMerchMap(parsed);
+        setLangMerchFile({
+          name: file.name,
+          size: file.size
+        });
+        const merged = mergeNameMaps(notionNameMap, langMap, killerMap, parsed);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
+        messageApi.success('LanguageMerchandise JSON 上传成功');
+      } catch (err) {
+        messageApi.error('LanguageMerchandise 解析失败');
       }
     };
     reader.readAsText(file);
@@ -299,7 +330,7 @@ const LotteryWikiPage: React.FC = () => {
           name: file.name,
           size: file.size
         });
-        const merged = mergeNameMaps(notionNameMap, langMap, parsed);
+        const merged = mergeNameMaps(notionNameMap, langMap, parsed, langMerchMap);
         setNameMap(merged);
         if (Object.keys(notionMap).length) {
           rebuild(notionMap, uploadedMap, merged, boxNameMap);
@@ -487,6 +518,15 @@ const LotteryWikiPage: React.FC = () => {
                   type={langFile ? 'primary' : 'default'}
                 >
                   {langFile ? langFile.name : '上传语言配置'}
+                </Button>
+              </Upload>
+
+              <Upload beforeUpload={handleLangMerchUpload} showUploadList={false} accept=".json">
+                <Button
+                  icon={langMerchFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                  type={langMerchFile ? 'primary' : 'default'}
+                >
+                  {langMerchFile ? langMerchFile.name : '上传LanguageMerchandise'}
                 </Button>
               </Upload>
 
