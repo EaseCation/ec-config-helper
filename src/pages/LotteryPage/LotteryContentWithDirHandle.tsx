@@ -12,7 +12,12 @@ import {
   UpOutlined
 } from "@ant-design/icons";
 import { DirectoryContext } from "../../context/DirectoryContext";
-import { NOTION_DATABASE_LOTTERY, LotteryConfig, areLotteryConfigsEqual, DifferentParts } from "../../services/lottery/lotteryNotionQueries";
+import {
+  NOTION_DATABASE_LOTTERY,
+  LotteryConfig,
+  areLotteryConfigsEqual,
+  DifferentParts,
+} from "../../services/lottery/lotteryNotionQueries";
 const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/notion/";
 
 const LotteryContentWithDirHandle: React.FC = () => {

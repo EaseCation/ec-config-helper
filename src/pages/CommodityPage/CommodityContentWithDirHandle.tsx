@@ -12,12 +12,17 @@ import {
   UpOutlined
 } from "@ant-design/icons";
 import { DirectoryContext } from "../../context/DirectoryContext";
-import { DifferentParts, compareCommodityData, CommodityData } from "../../services/commodity/compareCommodityData";
+import {
+  DifferentParts,
+  compareCommodityData,
+  CommodityData,
+} from "../../services/commodity/compareCommodityData";
 
 const { Text } = Typography;
-const COMMODITY_PATH = "CodeFunCore/src/main/resources/net/easecation/codefuncore/commodity/";
+const COMMODITY_PATH =
+  "CodeFunCore/src/main/resources/net/easecation/codefuncore/commodity/";
 
-const LotteryContentWithDirHandle: React.FC = () => {
+const CommodityContentWithDirHandle: React.FC = () => {
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
@@ -225,4 +230,4 @@ const LotteryContentWithDirHandle: React.FC = () => {
   );
 };
 
-export default LotteryContentWithDirHandle;
+export default CommodityContentWithDirHandle;
