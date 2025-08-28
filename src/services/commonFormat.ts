@@ -179,11 +179,16 @@ export function parseRelation(data: NotionPropertyValue): string {
 }
 
 /** rollup -> 如果 type=array，则处理里面每个 item */
-export function parseRollup(data: NotionPropertyValue): string {
+export function parseRollup(data: NotionPropertyValue): string | boolean {
   if (data.type !== 'rollup' || data.rollup.type !== 'array') {
     throw new NotionPropertyParseError('parseRollup: Not a rollup array property', data);
   }
   const arr = data.rollup.array;
+
+  if (arr.length === 1 && arr[0].type === 'checkbox') {
+    return parseCheckbox(arr[0] as NotionPropertyValue);
+  }
+
   return arr
     .map((item) => {
       // item 也有 type
@@ -191,7 +196,7 @@ export function parseRollup(data: NotionPropertyValue): string {
         case 'rich_text':
           return parseRichText(item as NotionPropertyValue);
         case 'checkbox':
-          return parseCheckbox(item as NotionPropertyValue);
+          return parseCheckbox(item as NotionPropertyValue) ? 'true' : 'false';
         case 'number':
           return parseNumber(item as NotionPropertyValue)
         case 'formula':

@@ -1,0 +1,1 @@
+export const NOTION_DATABASE_COMMODITY = '1959ff1f-c1d4-4754-9014-cd4f3c80c36f';

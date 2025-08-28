@@ -1,0 +1,686 @@
+import React, { useState, useRef } from 'react';
+import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal, Popconfirm, Tooltip } from 'antd';
+import type { MenuProps } from 'antd';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
+import { flatProperty, parseCheckbox, parseRelation } from '../services/commonFormat';
+import { formatLottery, WikiResult } from '../services/lottery/lotteryService';
+import { buildWikiTables, buildWikiCSVs, buildMarkdownTables } from '../services/lottery/wikiFormatter';
+import { NOTION_DATABASE_LOTTERY } from '../services/lottery/lotteryNotionQueries';
+import { fetchCommodityNameMap } from '../services/commodity/commodityNameService';
+import { fetchLotteryBoxNameMap } from '../services/lottery/lotteryNameService';
+import { parseLanguageConfig, parseKillerMerchandise } from '../services/lottery/extraNameParser';
+import { downloadCSV, downloadCSVAsZip, downloadMarkdown } from '../utils/download';
+import { parseLocalLotteryConfig } from '../services/lottery/configParser';
+
+const { Paragraph, Title, Text } = Typography;
+
+const splitString = (input: string): string[] => input.split(', ').filter(Boolean);
+
+const stages = ['初始化','检查 Notion Token','获取 Lottery 页面','解析 Lottery 数据','获取名称映射','构建 Wiki 数据','完成'];
+
+const renderMarkdown = (md: string) => {
+  const lines = md.split(/\r?\n/);
+  const elements: React.ReactNode[] = [];
+  let idx = 0;
+  if (lines[idx]?.startsWith('## ')) {
+    elements.push(<Title level={4} key="title">{lines[idx].replace(/^## /, '')}</Title>);
+    idx++;
+  }
+  if (lines[idx]?.startsWith('>')) {
+    elements.push(<Text type="secondary" key="time">{lines[idx].replace(/^>\s*/, '')}</Text>);
+    idx++;
+  }
+  if (lines[idx] === '') idx++;
+  if (lines[idx]?.startsWith('抽取')) {
+    elements.push(<Paragraph key="desc">{lines[idx]}</Paragraph>);
+    idx += 2; // skip description and blank line
+  }
+  if (lines[idx]?.startsWith('|')) {
+    const header = lines[idx].split('|').slice(1, -1).map(s => s.trim());
+    idx += 2; // skip header and separator
+    const rows: string[][] = [];
+    for (; idx < lines.length; idx++) {
+      const row = lines[idx];
+      if (!row.trim()) continue;
+      const cols = row.split('|').slice(1, -1).map(s => s.trim());
+      rows.push(cols);
+    }
+    elements.push(
+      <table key="table" style={{ borderCollapse: 'collapse', marginTop: 8 }}>
+        <thead>
+          <tr>
+            {header.map((h, i) => (
+              <th key={i} style={{ border: '1px solid #ddd', padding: '4px' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i}>
+              {r.map((c, j) => (
+                <td key={j} style={{ border: '1px solid #ddd', padding: '4px' }}>{c}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+  return <>{elements}</>;
+};
+
+const LotteryWikiPage: React.FC = () => {
+  const [loading, setLoading] = useState(false);
+  const [tables, setTables] = useState<Record<string, string>>({});
+  const [csvs, setCsvs] = useState<Record<string, string>>({});
+  const [markdowns, setMarkdowns] = useState<Record<string, string>>({});
+  const [probabilitySums, setProbabilitySums] = useState<Record<string, number>>({});
+  const [messageApi, contextHolder] = message.useMessage();
+  const [stageIndex, setStageIndex] = useState(0);
+  const percent = Math.round((stageIndex / (stages.length - 1)) * 100);
+  const currentStage = stages[stageIndex];
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [notionMap, setNotionMap] = useState<Record<string, WikiResult>>({});
+  const [uploadedMap, setUploadedMap] = useState<Record<string, WikiResult>>({});
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{name: string, size: number}>>([]);
+  const [nameMap, setNameMap] = useState<Record<string, string>>({});
+  const [notionNameMap, setNotionNameMap] = useState<Record<string, string>>({});
+  const [boxNameMap, setBoxNameMap] = useState<Record<string, string>>({});
+  const [langMap, setLangMap] = useState<Record<string, string>>({});
+  const [langFile, setLangFile] = useState<{name: string, size: number} | null>(null);
+  const [langMerchMap, setLangMerchMap] = useState<Record<string, string>>({});
+  const [langMerchFile, setLangMerchFile] = useState<{name: string, size: number} | null>(null);
+  const [killerMap, setKillerMap] = useState<Record<string, string>>({});
+  const [killerFile, setKillerFile] = useState<{name: string, size: number} | null>(null);
+  const uploadBatchRef = useRef({ total: 0, done: 0 });
+
+  const mergeNameMaps = (
+    nMap: Record<string, string>,
+    lMap: Record<string, string>,
+    kMap: Record<string, string>,
+    mMap: Record<string, string> = {},
+  ) => {
+    const merged: Record<string, string> = { ...nMap };
+
+    // fill missing entries from language maps and killer map
+    for (const [k, v] of Object.entries(lMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    for (const [k, v] of Object.entries(mMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+    for (const [k, v] of Object.entries(kMap)) {
+      if (!merged[k]) merged[k] = v;
+    }
+
+    // fallback: if a name still contains "prefix.", resolve it via full id lookup
+    for (const [k, v] of Object.entries(merged)) {
+      if (v && v.includes('prefix.')) {
+        merged[k] = lMap[k] || mMap[k] || kMap[k] || v;
+      }
+    }
+
+    return merged;
+  };
+
+
+  const rebuild = (
+    nMap: Record<string, WikiResult>,
+    uMap: Record<string, WikiResult>,
+    nNameMap: Record<string, string> = nameMap,
+    nBoxNameMap: Record<string, string> = boxNameMap
+  ) => {
+    const combined: Record<string, WikiResult> = { ...nMap, ...uMap };
+    const map = buildWikiTables(combined, nNameMap, nBoxNameMap);
+    const csvMap = buildWikiCSVs(combined, nNameMap, nBoxNameMap);
+    const mdMap = buildMarkdownTables(combined, nNameMap, nBoxNameMap);
+
+    const sums: Record<string, number> = {};
+    for (const [key, csv] of Object.entries(csvMap)) {
+      const lines = csv.split(/\r?\n/);
+      let startIndex = 1;
+      if (lines[0] && lines[0].startsWith('保底次数')) {
+        startIndex = 2;
+      }
+      let total = 0;
+      for (let i = startIndex; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        const chance = parts[2];
+        if (chance && chance !== '保底') {
+          const num = parseFloat(chance.replace(/"|%/g, ''));
+          if (!isNaN(num)) total += num;
+        }
+      }
+      sums[key] = total;
+    }
+
+    setTables(map);
+    setCsvs(csvMap);
+    setMarkdowns(mdMap);
+    setProbabilitySums(sums);
+  };
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      setStageIndex(1);
+      const token = getNotionToken();
+      if (!token) {
+        messageApi.error('尚未设置 Notion Token');
+        return;
+      }
+      setStageIndex(2);
+      const pages = await fetchNotionAllPages(NOTION_DATABASE_LOTTERY, {});
+      setStageIndex(3);
+      const grouped: Record<string, any[]> = {};
+      for (const page of pages) {
+        if (parseCheckbox(page.properties['禁用'])) continue;
+        const boxId = parseRelation(page.properties['所在抽奖箱']);
+        const id = String(flatProperty(page.properties['exchange_id']) || '');
+        if (!boxId || !id) continue;
+        const boxes = splitString(boxId);
+        for (const box of boxes) {
+          if (!grouped[box]) grouped[box] = [];
+          grouped[box].push(page);
+        }
+      }
+      const wikiMap: Record<string, WikiResult> = {};
+      for (const key in grouped) {
+        const formatted = formatLottery(grouped[key]);
+        const wiki = formatted.wiki_result;
+        if (wiki.name && wiki.gain.length) {
+          wikiMap[wiki.exc] = wiki;
+        }
+      }
+
+      setStageIndex(4);
+      const [nMap, bMap] = await Promise.all([
+        fetchCommodityNameMap(),
+        fetchLotteryBoxNameMap()
+      ]);
+      setNotionNameMap(nMap);
+      const mergedNameMap = mergeNameMaps(nMap, langMap, killerMap, langMerchMap);
+      setNameMap(mergedNameMap);
+      setBoxNameMap(bMap);
+
+      setStageIndex(5);
+      setNotionMap(wikiMap);
+
+      rebuild(wikiMap, uploadedMap, mergedNameMap, bMap);
+      setStageIndex(6);
+    } catch (err) {
+      console.error(err);
+      messageApi.error('获取 Lottery 数据失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStart = () => {
+    if (!langFile || !killerFile) {
+      // 如果没有上传必要的配置文件，直接调用 load
+      load();
+    } else {
+      load();
+    }
+  };
+
+  const handleUpload = (file: File, fileList: File[]) => {
+    if (uploadBatchRef.current.total === 0) {
+      uploadBatchRef.current.total = fileList.length;
+      uploadBatchRef.current.done = 0;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseLocalLotteryConfig(json);
+        setUploadedMap((prev) => {
+          const newMap = { ...prev, ...parsed };
+          if (Object.keys(notionMap).length) {
+            rebuild(notionMap, newMap);
+          }
+          return newMap;
+        });
+
+        // 添加文件到列表
+        setUploadedFiles(prev => [...prev, {
+          name: file.name,
+          size: file.size
+        }]);
+      } catch (err) {
+        messageApi.error('JSON 解析失败');
+      } finally {
+        uploadBatchRef.current.done += 1;
+        if (uploadBatchRef.current.done === uploadBatchRef.current.total) {
+          messageApi.success(`${uploadBatchRef.current.total}个文件上传完成`);
+          uploadBatchRef.current.total = 0;
+          uploadBatchRef.current.done = 0;
+        }
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleLangUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseLanguageConfig(json);
+        // 替换而不是合并
+        setLangMap(parsed);
+        setLangFile({
+          name: file.name,
+          size: file.size
+        });
+        const merged = mergeNameMaps(notionNameMap, parsed, killerMap, langMerchMap);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
+        messageApi.success('语言配置 JSON 上传成功');
+      } catch (err) {
+        messageApi.error('语言配置解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleLangMerchUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseLanguageConfig(json);
+        setLangMerchMap(parsed);
+        setLangMerchFile({
+          name: file.name,
+          size: file.size
+        });
+        const merged = mergeNameMaps(notionNameMap, langMap, killerMap, parsed);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
+        messageApi.success('LanguageMerchandise JSON 上传成功');
+      } catch (err) {
+        messageApi.error('LanguageMerchandise 解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleKillerUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const json = JSON.parse(String(e.target?.result || '{}'));
+        const parsed = parseKillerMerchandise(json);
+        // 替换而不是合并
+        setKillerMap(parsed);
+        setKillerFile({
+          name: file.name,
+          size: file.size
+        });
+        const merged = mergeNameMaps(notionNameMap, langMap, parsed, langMerchMap);
+        setNameMap(merged);
+        if (Object.keys(notionMap).length) {
+          rebuild(notionMap, uploadedMap, merged, boxNameMap);
+        }
+        messageApi.success('密室杀手商品 JSON 上传成功');
+      } catch (err) {
+        messageApi.error('密室杀手商品解析失败');
+      }
+    };
+    reader.readAsText(file);
+    return false;
+  };
+
+  const handleExportAll: MenuProps['onClick'] = ({ key }) => {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    
+    if (key === 'csv') {
+      if (Object.keys(csvs).length) {
+        downloadCSVAsZip(csvs, `lottery_csv_${today}`);
+        messageApi.success('已下载全部 CSV');
+      } else {
+        messageApi.error('CSV 数据缺失');
+      }
+      return;
+    }
+
+    const header = `# EaseCation 抽奖箱概率表\n> 更新时间：${new Date().toLocaleString('zh-CN', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })}\n\n`;
+    const body = Object.keys(tables)
+      .map((name) => markdowns[name])
+      .filter(Boolean)
+      .join('\n\n');
+    const combined = header + body;
+
+    if (!body) {
+      messageApi.error('Markdown 数据缺失');
+      return;
+    }
+
+    if (key === 'markdown-copy') {
+      navigator.clipboard.writeText(combined);
+      messageApi.success('已复制全部 Markdown');
+    } else if (key === 'markdown-download') {
+      downloadMarkdown(combined, `EaseCation 抽奖箱概率表_${today}`);
+      messageApi.success('已下载全部 Markdown');
+    }
+  };
+
+  const exportAllItems: MenuProps['items'] = [
+    { key: 'csv', label: '下载全部 CSV' },
+    { key: 'markdown-copy', label: '复制全部 Markdown' },
+    { key: 'markdown-download', label: '下载全部 Markdown' }
+  ];
+
+  const items = Object.entries(tables).map(([name, table]) => {
+    const csv = csvs[name];
+    const md = markdowns[name];
+    const sum = probabilitySums[name];
+    return {
+      key: name,
+      label: name,
+      extra: (
+        <Space>
+          {sum !== undefined && (
+            <Tag color={sum >= 99 && sum <= 101 ? 'green' : 'red'}>{sum.toFixed(3)}%</Tag>
+          )}
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'csv', label: '下载 CSV' },
+                { key: 'markdown-copy', label: '复制 Markdown' },
+                { key: 'markdown-download', label: '下载 Markdown' }
+              ],
+              onClick: ({ key, domEvent }) => {
+                domEvent.stopPropagation();
+                const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+                
+                if (key === 'csv') {
+                  if (csv) {
+                    downloadCSV(csv, `${name}_${today}`);
+                    messageApi.success('已下载');
+                  } else {
+                    messageApi.error('CSV 数据缺失');
+                  }
+                } else if (key === 'markdown-copy') {
+                  if (md) {
+                    navigator.clipboard.writeText(md);
+                    messageApi.success('Markdown 已复制');
+                  } else {
+                    messageApi.error('Markdown 数据缺失');
+                  }
+                } else if (key === 'markdown-download') {
+                  if (md) {
+                    downloadMarkdown(md, `${name}_${today}`);
+                    messageApi.success('Markdown 已下载');
+                  } else {
+                    messageApi.error('Markdown 数据缺失');
+                  }
+                }
+              }
+            }}
+          >
+            <Button size="small" icon={<ExportOutlined />} onClick={(e) => e.stopPropagation()} />
+          </Dropdown>
+          <Button
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(table);
+              messageApi.success('已复制');
+            }}
+          />
+        </Space>
+      ),
+      children: (
+        <div>{renderMarkdown(md || '')}</div>
+      ),
+    };
+  });
+
+  return (
+    <div className="responsive-padding">
+      {contextHolder}
+      <Modal
+        open={infoOpen}
+        onCancel={() => setInfoOpen(false)}
+        footer={null}
+        title="概率表计算原理"
+        width={800}
+      >
+        <Typography style={{ maxHeight: '60vh', overflowY: 'auto', lineHeight: 1.7 }}>
+          <Paragraph>
+            抽奖箱概率表计算主要流程如下：
+          </Paragraph>
+          <ol>
+            <li>读取 Notion 数据库的原始配置。</li>
+            <li>若上传 JSON 抽奖箱配置，则加入解析队列。</li>
+            <li>存在嵌套抽奖箱，需要递归解析。</li>
+            <li>名称映射优先级：Notion → cfgLanguage → merchandise.json。</li>
+            <li>分析并重新构建后可导出表格、CSV 与 Markdown。</li>
+          </ol>
+          
+          <Title level={5} style={{ marginTop: 16 }}>详细解析逻辑</Title>
+          
+          <Title level={5}>1. Notion 数据解析</Title>
+          <Paragraph>
+            从 Notion 数据库读取抽奖箱配置，解析以下属性：
+          </Paragraph>
+          <ul>
+            <li><Text code>exchange_id</Text>：抽奖箱唯一标识符</li>
+            <li><Text code>需要钥匙？</Text>：是否需要消耗钥匙</li>
+            <li><Text code>whenCallFallback</Text>：保底触发次数</li>
+            <li><Text code>展示到wiki？</Text>：是否在wiki中显示</li>
+            <li><Text code>wikiDisplayName</Text>：wiki显示名称</li>
+            <li><Text code>gainExchangeID</Text>：奖品抽奖箱ID（嵌套抽奖箱）</li>
+            <li><Text code>权重</Text>：奖品权重</li>
+            <li><Text code>数量</Text>：奖品数量</li>
+            <li><Text code>商品全称</Text>：奖品名称</li>
+            <li><Text code>保底？</Text>：是否为保底奖品</li>
+          </ul>
+          
+          <Title level={5}>2. JSON 配置文件解析</Title>
+          <Paragraph>
+            <Text strong>本地抽奖箱配置解析：</Text>
+          </Paragraph>
+          <ul>
+            <li>解析 <Text code>fallbackTimes</Text>：保底次数</li>
+            <li>解析 <Text code>gain</Text> 数组中的奖品信息</li>
+            <li>支持 <Text code>subExchanges</Text>（嵌套抽奖箱）</li>
+            <li>支持 <Text code>merchandises</Text>（商品奖励）</li>
+            <li>支持 <Text code>coin</Text>（EC币奖励）</li>
+            <li>支持 <Text code>exp</Text>（经验奖励）</li>
+          </ul>
+          
+          <Paragraph>
+            <Text strong>语言配置解析：</Text>
+          </Paragraph>
+          <ul>
+            <li>cfgLanguage：解析 <Text code>key</Text> 和 <Text code>zh/zh_TW/en</Text> 字段</li>
+            <li>cfgLanguageMerchandise：解析商品语言映射</li>
+            <li>密室杀手商品：解析 <Text code>merchandise</Text> 和 <Text code>name</Text> 字段</li>
+          </ul>
+          
+          <Title level={5}>3. 名称映射逻辑</Title>
+          <Paragraph>
+            名称解析优先级顺序：
+          </Paragraph>
+          <ol>
+            <li>Notion 商品名称数据库（排除 music 类型商品）</li>
+            <li>cfgLanguage 语言配置</li>
+            <li>cfgLanguageMerchandise 商品语言配置</li>
+            <li>密室杀手商品配置</li>
+            <li>特殊处理：coin → EC币，exp → 大厅经验</li>
+          </ol>
+          
+          <Title level={5}>4. 抽奖箱名称解析</Title>
+          <Paragraph>
+            抽奖箱名称解析策略：
+          </Paragraph>
+          <ul>
+            <li>从抽奖箱配置数据库获取名称</li>
+            <li>支持多种属性类型：rich_text、title、relation</li>
+            <li>递归查找关联的抽奖箱配置</li>
+            <li>语言键查找：lobby.lottery.&#123;name&#125;</li>
+            <li>ID 格式转换：下划线转点号、连字符等</li>
+          </ul>
+          
+          <Title level={5}>5. 概率计算与格式化</Title>
+          <Paragraph>
+            Wiki 表格生成逻辑：
+          </Paragraph>
+          <ul>
+            <li>递归展开嵌套抽奖箱，计算实际权重</li>
+            <li>处理保底机制和条件逻辑</li>
+            <li>格式化持续时间（天/小时/分钟/秒）</li>
+            <li>移除颜色代码和格式化字符</li>
+            <li>生成 Markdown 表格和 CSV 数据</li>
+          </ul>
+          
+          <Title level={5}>6. 文件来源说明</Title>
+          <ul>
+            <li>
+              <Text strong>JSON 抽奖箱配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange</Text> 目录中的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>语言库配置</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>商品语言库配置</Text>：<Text code>cfgLanguageMerchandise</Text> 数据库导出的 JSON 文件。
+            </li>
+            <li>
+              <Text strong>密室杀手商品配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json</Text>。
+            </li>
+          </ul>
+        </Typography>
+      </Modal>
+      <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0 24px' }}>
+        <Title style={{ margin: 0, flex: 1 }}>概率表导出</Title>
+        <InfoCircleOutlined
+          style={{ fontSize: 20, color: '#1677ff', cursor: 'pointer' }}
+          onClick={() => setInfoOpen(true)}
+        />
+      </div>
+
+             <Space direction="vertical" size="middle" style={{ marginBottom: 16, width: '100%' }}>
+         <Space wrap size="small">
+           <Tooltip title="CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange 目录中的 JSON 文件">
+             <Upload beforeUpload={handleUpload} showUploadList={false} accept=".json" multiple disabled={loading}>
+               <Button
+                 icon={uploadedFiles.length > 0 ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={uploadedFiles.length > 0 ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {uploadedFiles.length > 0 ? `商品配置 (${uploadedFiles.length})` : '上传JSON抽奖箱配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
+
+           <Tooltip title="cfgLanguage 数据库导出的 JSON 文件">
+             <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" disabled={loading}>
+               <Button
+                 icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={langFile ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {langFile ? langFile.name : '上传语言库配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
+
+           <Tooltip title="cfgLanguageMerchandise 数据库导出的 JSON 文件">
+             <Upload beforeUpload={handleLangMerchUpload} showUploadList={false} accept=".json" disabled={loading}>
+               <Button
+                 icon={langMerchFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={langMerchFile ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {langMerchFile ? langMerchFile.name : '上传商品语言库配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
+
+           <Tooltip title="CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/unlockupgrade/mm/merchandise.json">
+             <Upload beforeUpload={handleKillerUpload} showUploadList={false} accept=".json" disabled={loading}>
+               <Button
+                 icon={killerFile ? <CheckCircleOutlined /> : <UploadOutlined />}
+                 type={killerFile ? 'primary' : 'default'}
+                 disabled={loading}
+               >
+                 {killerFile ? killerFile.name : '上传密室杀手商品配置'}
+               </Button>
+             </Upload>
+           </Tooltip>
+
+           {!langFile || !langMerchFile || !killerFile ? (
+             <Popconfirm
+               title="缺少翻译配置"
+               description="缺少翻译配置可能会导致部分名称未翻译，确定继续吗？"
+               onConfirm={load}
+               okText="确定"
+               cancelText="取消"
+               disabled={loading}
+             >
+               <Button type="primary" icon={<PlayCircleOutlined />} disabled={loading}>
+                 开始
+               </Button>
+             </Popconfirm>
+           ) : (
+             <Button type="primary" icon={<PlayCircleOutlined />} onClick={load} disabled={loading}>
+               开始
+             </Button>
+           )}
+           
+           <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }} disabled={loading}>
+             <Button icon={<ExportOutlined />} disabled={loading}>导出</Button>
+           </Dropdown>
+         </Space>
+         {uploadedFiles.length > 0 && (
+           <div style={{ fontSize: '12px', color: '#666' }}>
+             已上传的抽奖箱配置文件：
+             {uploadedFiles.map((file, index) => (
+               <span key={index} style={{ marginRight: '8px' }}>
+                 {file.name}
+               </span>
+             ))}
+           </div>
+         )}
+         {loading && (
+           <div style={{ textAlign: 'center', paddingTop: '1rem', paddingBottom: '1rem' }}>
+             <Progress
+               percent={percent}
+               status={stageIndex === stages.length - 1 ? 'success' : 'active'}
+               strokeColor={{ from: '#108ee9', to: '#87d068' }}
+             />
+             <div style={{ marginTop: 16 }}>{currentStage}</div>
+           </div>
+         )}
+
+
+       </Space>
+       
+       {items.length > 0 && <Collapse accordion items={items} />}
+    </div>
+  );
+};
+
+export default LotteryWikiPage;
+

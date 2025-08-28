@@ -1,5 +1,5 @@
 import { NotionPage } from '../../notion/notionTypes';
-import { flatProperty, parseCheckbox, parseRollup, parseRelation} from '../commonFormat'
+import { flatProperty } from '../commonFormat'
 
 
 const DEFAULT_WIKI_RESULT: WikiResult = {
@@ -12,7 +12,7 @@ const DEFAULT_WIKI_RESULT: WikiResult = {
 
 const DEFAULT_RESULT = { error: 'No lottery data' };
 
-interface WikiGainItem {
+export interface WikiGainItem {
   weight: number;
   exc?: string;       // 条件存在的属性
   fallback?: boolean; // 条件存在的属性
@@ -21,7 +21,7 @@ interface WikiGainItem {
 }
 
 // 创建 wikiResult 对象（需先定义类型）
-interface WikiResult {
+export interface WikiResult {
   name: string;
   exc: string;
   display: boolean;
@@ -38,7 +38,7 @@ export interface ResultType {
 /** 生成 Lottery 所需 JSON */
 export function formatLottery(pages: NotionPage[]): ResultType  {
   if (pages.length === 0) {
-    return { 
+    return {
       name: "",
       result: DEFAULT_RESULT,
       wiki_result: DEFAULT_WIKI_RESULT
@@ -46,34 +46,22 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
   }
 
   const first = pages[0];
-  const exchangeId = parseRollup(first.properties.exchange_id);
+  const exchangeId = String(flatProperty(first.properties.exchange_id) || '');
   const exchangeRealName: string = `exc_lottery_${exchangeId.replace(/\./g, '_')}`;
-  const ifNeedKeyDefult = parseRollup(first.properties['需要钥匙？']);
-  let ifNeedKey;
-  if(ifNeedKeyDefult === '') {
-    ifNeedKey = false;
-  } else {
-    ifNeedKey = JSON.parse(ifNeedKeyDefult);
-  }
 
+  const ifNeedKey = Boolean(flatProperty(first.properties['需要钥匙？']));
 
   const whenCallFallback = Number(flatProperty(first.properties.whenCallFallback));
   const exchangeCallFallbackName = `lottery.times.${exchangeId}`;
 
-  const ifWikiCopy = parseRollup(first.properties['展示到wiki？']);
-  let ifWiki;
-  if (ifWikiCopy === '') {
-    ifWiki = false;
-  } else {
-    ifWiki = JSON.parse(ifWikiCopy)
-  }
-  const wikiDisplayName = parseRollup(first.properties['wikiDisplayName']);
+  const ifWiki = Boolean(flatProperty(first.properties['展示到wiki？']));
+  const wikiDisplayName = String(flatProperty(first.properties['wikiDisplayName']) || exchangeId || exchangeRealName);
   
   const wikiResult: WikiResult = {
-    name: wikiDisplayName || '', // 处理空值情况
-    exc: exchangeId,
-    display: ifWiki, // 转换为布尔值
-    fallbackTimes: whenCallFallback, // 转换为数字
+    name: wikiDisplayName,
+    exc: exchangeRealName,
+    display: ifWiki,
+    fallbackTimes: whenCallFallback,
     gain: []
   };
 
@@ -85,31 +73,26 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
   result["gain"] = [];
 
   for (const item of pages) {
-    let itemExchangeID = parseRollup(item.properties.gainExchangeID);
-    if(itemExchangeID) {
+    let itemExchangeID = String(flatProperty(item.properties.gainExchangeID) || '');
+    if (itemExchangeID) {
       itemExchangeID = `exc_lottery_${itemExchangeID.replace(/\./g, '_')}`;
     }
     const itemWeight = Number(flatProperty(item.properties['权重']));
-    const itemResult: any = {
-      weight: itemWeight
-    };
-    const itemWikiResult: any = {
-      weight: itemWeight
-    };
-    
-    itemResult["weight"] = itemWeight;
-    itemWikiResult["weight"] = itemWeight;
+    const itemResult: any = { weight: itemWeight };
+    const itemWikiResult: any = { weight: itemWeight };
+
     const itemData = Number(flatProperty(item.properties['数量'])) || 1;
-    const itemMerchandise = `${parseRollup(item.properties['商品全称'])}:${itemData}`;
-    if(itemExchangeID) {
+    const itemName = String(flatProperty(item.properties['商品全称']) || '');
+    const itemMerchandise = `${itemName}:${itemData}`;
+    if (itemExchangeID) {
       // exchange item
-      const itemExchangeCallFallback = parseCheckbox(item.properties['保底？']);
-      //wiki
+      const itemExchangeCallFallback = Boolean(flatProperty(item.properties['保底？']));
+      // wiki
       itemWikiResult["exc"] = itemExchangeID;
       itemWikiResult["fallback"] = itemExchangeCallFallback;
 
       itemResult["subExchanges"] = itemExchangeID;
-      if(whenCallFallback){
+      if (whenCallFallback) {
         // has call back
         if (!itemExchangeCallFallback) {
           // not fall back
@@ -119,7 +102,7 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
             merchandise: `${exchangeCallFallbackName}:1`
           };
         } else {
-          //fallback
+          // fallback
           itemResult["condition"] = `{${exchangeCallFallbackName}} >= ${whenCallFallback}`;
           itemResult["callback"] = {
             type: "merchandise.set",
@@ -132,12 +115,14 @@ export function formatLottery(pages: NotionPage[]): ResultType  {
       itemResult["merchandises"] = [itemMerchandise];
 
       // wiki
-      itemWikiResult["name"] = parseRollup(item.properties.wikiDisplayItemName);
+      itemWikiResult["name"] = itemName;
       itemWikiResult["data"] = itemData;
     }
 
     result["gain"].push(itemResult);
-    wikiResult["gain"].push(itemWikiResult);
+    if (itemWikiResult.exc || itemWikiResult.name) {
+      wikiResult["gain"].push(itemWikiResult);
+    }
     // if (itemExchangeID) {
     //   result["gain"].push(itemResult);
     //   wikiResult["gain"].push(itemWikiResult);

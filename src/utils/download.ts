@@ -27,6 +27,52 @@ export function downloadJson(jsonData: any, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadCSV(csvData: string, fileName: string) {
+  const BOM = '\uFEFF'; // UTF-8 BOM 让 Excel 识别为 UTF-8
+  const normalized = csvData.replace(/\r?\n/g, '\r\n'); // 统一为 CRLF
+  const blob = new Blob([BOM, normalized], { type: 'text/csv;charset=utf-8;' });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.endsWith('.csv') ? fileName : `${fileName}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function downloadMarkdown(mdData: string, fileName: string) {
+  const blob = new Blob([mdData], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName.endsWith('.md') ? fileName : `${fileName}.md`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+export function downloadCSVAsZip(fileArray: Record<string, string>, zipFileName: string) {
+  const zip = new JSZip();
+
+  Object.entries(fileArray).forEach(([fileName, csvData]) => {
+    const BOM = '\uFEFF';
+    const normalized = csvData.replace(/\r?\n/g, '\r\n');
+    zip.file(`${fileName}.csv`, BOM + normalized);
+  });
+
+  zip
+    .generateAsync({ type: 'blob' })
+    .then((blob) => {
+      saveAs(blob, zipFileName.endsWith('.zip') ? zipFileName : `${zipFileName}.zip`);
+    })
+    .catch((error) => {
+      console.error('Error generating ZIP file:', error);
+    });
+}
+
 export function downloadJsonAsZip(fileArray: { [key: string]: any }, zipFileName: string) {
   // 创建一个 JSZip 实例
   const zip = new JSZip();
