@@ -24,7 +24,7 @@ const WelcomePage: React.FC = () => {
             // navigate('/');
             window.location.href = '/';
           }}
-          style={{ width: 300 }}
+          style={{ width: '100%', maxWidth: 500 }}
         >
           <Form.Item
             name={'notionToken'}
@@ -33,9 +33,9 @@ const WelcomePage: React.FC = () => {
               { pattern: /^secret_/, message: 'Notion Token 以 secret_ 开头' },
             ]}
           >
-            <Input
-              type={'password'}
+            <Input.Password
               placeholder="请输入 Notion Token"
+              style={{ width: '100%' }}
             />
           </Form.Item>
           <Form.Item label={null}>
