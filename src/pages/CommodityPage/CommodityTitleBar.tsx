@@ -23,7 +23,11 @@ const CommodityTitleBar: React.FC = () => {
         {dirHandle && (
           <Text>
             已选择的项目目录：{dirHandle.name}
-            <Button size="small" type="link" onClick={() => chooseDirectory().then()}>
+            <Button
+              size="small"
+              type="link"
+              onClick={() => chooseDirectory("readwrite")}
+            >
               重新选择
             </Button>
           </Text>

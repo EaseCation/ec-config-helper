@@ -1,9 +1,10 @@
 import React from "react";
-import { Layout } from 'antd';
-import { Content } from "antd/es/layout/layout";
+import { Layout } from "antd";
 import { DirectoryContextProvider } from "../../context/DirectoryContext";
 import CommodityTitleBar from "./CommodityTitleBar";
 import CommodityContent from "./CommodityContent";
+
+const { Content } = Layout;
 
 const CommodityPage: React.FC = () => {
   return (

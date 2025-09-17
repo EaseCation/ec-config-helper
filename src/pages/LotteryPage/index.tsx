@@ -1,11 +1,12 @@
 import React from "react";
-import { Layout } from 'antd';
-import { Content } from "antd/es/layout/layout";
+import { Layout } from "antd";
 import { DirectoryContextProvider } from "../../context/DirectoryContext";
 import LotteryTitleBar from "./LotteryTitleBar";
 import LotteryContent from "./LotteryContent";
 
-const LotteryPage2: React.FC = () => {
+const { Content } = Layout;
+
+const LotteryPage: React.FC = () => {
   return (
     <DirectoryContextProvider>
       <Layout>
@@ -18,4 +19,4 @@ const LotteryPage2: React.FC = () => {
   );
 }
 
-export default LotteryPage2;
+export default LotteryPage;

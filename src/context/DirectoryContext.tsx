@@ -1,4 +1,10 @@
-import React, { createContext, ReactNode, useCallback, useEffect, useState, } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import localforage from "localforage";
 import { message } from "antd";
 
@@ -30,8 +36,15 @@ export const DirectoryContextProvider: React.FC<DirectoryContextProviderProps> =
   useEffect(() => {
     (async () => {
       try {
-        const storedHandle = await localforage.getItem<FileSystemDirectoryHandle>("dirHandle");
-        if (storedHandle) {
+        const storedHandle =
+          await localforage.getItem<FileSystemDirectoryHandle>("dirHandle");
+        if (!storedHandle) return;
+
+        const persistedPermission = await storedHandle.queryPermission({
+          mode: "read",
+        });
+
+        if (persistedPermission === "granted") {
           setDirHandle(storedHandle);
         }
       } catch (error) {
@@ -86,9 +99,9 @@ export const DirectoryContextProvider: React.FC<DirectoryContextProviderProps> =
     async (mode: FileSystemPermissionMode = "read") => {
       try {
         const handle = await window.showDirectoryPicker();
-        setDirHandle(handle);
         const perm = await handle.requestPermission({ mode });
         if (perm === "granted") {
+          setDirHandle(handle);
           message.success(`成功选择目录：${handle.name}`);
         } else {
           message.warning(`选择了目录：${handle.name}，但未授予权限`);
@@ -114,7 +127,7 @@ export const DirectoryContextProvider: React.FC<DirectoryContextProviderProps> =
       try {
         // 确保拥有读取权限
         const hasPermission = await ensurePermission("read");
-        if (!hasPermission) throw new Error("权限被拒绝，无法访问目录")
+        if (!hasPermission) throw new Error("权限被拒绝，无法访问目录");
 
         // 解析路径，支持子文件夹
         const pathSegments = filePath.split("/"); // 将路径拆分为子文件夹和文件名
