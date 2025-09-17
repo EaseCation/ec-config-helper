@@ -14,7 +14,9 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="responsive-padding">
-      <Title style={{ margin: "8px 0 24px" }}>设置</Title>
+      <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0 24px' }}>
+        <Title style={{ margin: 0, flex: 1 }}>设置</Title>
+      </div>
       <Form
         form={form}
         initialValues={{ notionToken: token }}
