@@ -108,6 +108,11 @@ export function formatWorkshop(
       itemObj.workshop.hide = true;
     }
 
+    // VIP不打折
+    if (row["noVipDiscount"]) {
+      itemObj.workshop.noVipDiscount = true;
+    }
+
     // 获取方式
     if (row["access"]) {
       itemObj.workshop.howMsg = row["access"];

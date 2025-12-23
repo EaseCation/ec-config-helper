@@ -5,9 +5,17 @@ import * as fm from "./commonFormat";
 /**
  * 将单个 NotionPage 解析为基础的 WorkshopItem 数据结构。
  */
+function parseRollupAsString(data: any): string | null {
+  const result = fm.parseRollup(data);
+  if (typeof result === 'boolean') {
+    return String(result);
+  }
+  return result || null;
+}
+
 export function pageToWorkshopItem(page: NotionPage): WorkshopItem {
   return {
-    category: fm.parseRollup(page.properties['category']),
+    category: parseRollupAsString(page.properties['category']),
     idItem: fm.parseRichText(page.properties['idItem']),
     ornamentPart: fm.parseSelect(page.properties['4D装扮部位']),
     imageSizeX: fm.parseNumber(page.properties['imageSize-x']),
@@ -33,5 +41,6 @@ export function pageToWorkshopItem(page: NotionPage): WorkshopItem {
     accessToDo: fm.parseRichText(page.properties['获取方式配置']),
     confirmIntroduce: fm.parseRichText(page.properties['购买确认页简介']),
     fallbackExchange: fm.parseRichText(page.properties['fallbackExchange']),
+    noVipDiscount: fm.parseCheckbox(page.properties['VIP不打折']),
   };
 }

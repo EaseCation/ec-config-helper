@@ -25,6 +25,7 @@ export interface WorkshopItem {
     "category": string | null;
     "idItem": string | null;
     "fallbackExchange": string | null;
+    "noVipDiscount": boolean;
 }
 
 export interface WorkshopCommodityConfig {
@@ -49,6 +50,7 @@ export interface WorkshopCommodityConfigItem {
         howAction?: string;
         gainAnimation?: WorkshopCommodityGainAnimation;
         hide?: boolean;
+        noVipDiscount?: boolean;
     };
     exchange?: WorkshopCommodityExchange;
 
