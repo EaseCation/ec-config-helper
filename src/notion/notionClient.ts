@@ -20,6 +20,10 @@ let memoryToken: string | null = null;
 export function getNotionToken(): string | null {
   // 优先使用内存中的 token（Node.js 环境）
   if (memoryToken) return memoryToken;
+  // MCP/Node.js 环境使用环境变量，避免将 token 写入项目文件。
+  if (typeof process !== 'undefined' && process.env?.NOTION_TOKEN) {
+    return process.env.NOTION_TOKEN;
+  }
   // 浏览器环境使用 localStorage
   if (typeof localStorage !== 'undefined') {
     return localStorage.getItem(NOTION_TOKEN_KEY) || null;

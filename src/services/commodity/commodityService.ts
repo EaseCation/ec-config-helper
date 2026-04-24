@@ -1,6 +1,7 @@
 import { message } from 'antd';
 import { NotionQueryBody } from '../../notion/notionTypes';
 import { getNotionToken, fetchNotionAllPages } from '../../notion/notionClient';
+import { NOTION_DATABASE_WORKSHOP } from '../workshop/workshopNotionQueries';
 
 interface NotionProperty {
   [key:string]:any
@@ -148,6 +149,29 @@ const body: NotionQueryBody = {
   ],
 };
 
+const ONLINE_COMMODITY_STATES = ["正式服", "测试服"];
+
+async function fetchOnlineCommodityTypeRelationIds(): Promise<Set<string>> {
+  const pages = await fetchNotionAllPages(NOTION_DATABASE_WORKSHOP, {
+    filter: {
+      or: ONLINE_COMMODITY_STATES.map((state) => ({
+        property: "上线状态",
+        select: { equals: state },
+      })),
+    },
+  });
+
+  const relationIds = new Set<string>();
+  for (const page of pages) {
+    const typeProp = page.properties["类型"];
+    if (typeProp?.type !== "relation") continue;
+    for (const relation of typeProp.relation) {
+      relationIds.add(relation.id);
+    }
+  }
+  return relationIds;
+}
+
 /**
  * 生成 Commodity JSON
  */
@@ -167,6 +191,8 @@ export const formatCommodity = async (databaseId: string) => {
   };
 
   try {
+    const onlineTypeRelationIds = await fetchOnlineCommodityTypeRelationIds();
+
     // 1. 获取全部 commodity 页面
     const pages: any[] = await fetchNotionAllPages(databaseId, body);
 
@@ -191,6 +217,9 @@ export const formatCommodity = async (databaseId: string) => {
 
       const typeId = data["typeId"];
       if (!typeId) continue; // 确保 typeId 存在
+
+      const typeRelationIds = String(data["相关商品类型"] || "").split(", ").filter(Boolean);
+      if (!typeRelationIds.some((id) => onlineTypeRelationIds.has(id))) continue;
 
       const commodityItem: any = {
         typeId: typeId,
