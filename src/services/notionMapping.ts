@@ -13,6 +13,13 @@ function parseRollupAsString(data: any): string | null {
   return result || null;
 }
 
+function parseOptionalNumber(data: NotionPage['properties'][string] | undefined): number | null {
+  if (!data) {
+    return null;
+  }
+  return fm.parseNumber(data);
+}
+
 export function pageToWorkshopItem(page: NotionPage): WorkshopItem {
   return {
     category: parseRollupAsString(page.properties['category']),
@@ -29,6 +36,7 @@ export function pageToWorkshopItem(page: NotionPage): WorkshopItem {
     scale: fm.parseNumber(page.properties['scale']),
     onlineState: fm.parseSelect(page.properties['上线状态']),
     price: fm.parseNumber(page.properties['价格']),
+    freeCreditsMaxPercent: parseOptionalNumber(page.properties['奖励点券最高抵扣比例']),
     priceUnit: fm.parseSelect(page.properties['价格单位']),
     useFullPreview: fm.parseCheckbox(page.properties['使用原图Preview']),
     name: fm.parseTitle(page.properties['名称']),

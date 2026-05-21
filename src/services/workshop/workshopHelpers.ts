@@ -74,8 +74,10 @@ export function generateExchange(
   const price = item["price"] ?? 0;
   const unit = item["priceUnit"] || "";
   const idItem = item["idItem"] || "";
+  const freeCreditsMaxPercent = item["freeCreditsMaxPercent"];
 
   if (price <= 0) {
+    validateNoFreeCreditsMaxPercentForFreeItem(item, idComplete);
     return undefined;
   }
 
@@ -83,6 +85,7 @@ export function generateExchange(
 
   switch (unit) {
     case "点券":
+      validateFreeCreditsMaxPercent(item, idComplete);
       return {
         buyExchange: {
           key,
@@ -90,11 +93,13 @@ export function generateExchange(
             type: "wallet_balance",
             currency: "credits",
             amount: price,
+            ...(freeCreditsMaxPercent !== null ? { freeCreditsMaxPercent } : {}),
           },
           gain: `${idComplete}:1`,
         }
       };
     case "钻石":
+      validateNoFreeCreditsMaxPercentForNonCredits(item, idComplete, unit);
       return {
         buyExchange: {
           key,
@@ -105,6 +110,7 @@ export function generateExchange(
         }
       };
     case "EC币":
+      validateNoFreeCreditsMaxPercentForNonCredits(item, idComplete, unit);
       return {
         buyExchange: {
           key,
@@ -115,7 +121,30 @@ export function generateExchange(
         }
       };
     default:
+      validateNoFreeCreditsMaxPercentForNonCredits(item, idComplete, unit);
       return undefined;
+  }
+}
+
+function validateFreeCreditsMaxPercent(item: WorkshopItem, idComplete: string): void {
+  const value = item["freeCreditsMaxPercent"];
+  if (value === null) {
+    return;
+  }
+  if (!Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 100) {
+    throw new Error(`商品 ${idComplete} 的“奖励点券最高抵扣比例”必须是 0 到 100 之间的整数`);
+  }
+}
+
+function validateNoFreeCreditsMaxPercentForNonCredits(item: WorkshopItem, idComplete: string, unit: string): void {
+  if (item["freeCreditsMaxPercent"] !== null) {
+    throw new Error(`商品 ${idComplete} 的“奖励点券最高抵扣比例”只能用于点券价格，当前价格单位为 ${unit || "空"}`);
+  }
+}
+
+function validateNoFreeCreditsMaxPercentForFreeItem(item: WorkshopItem, idComplete: string): void {
+  if (item["freeCreditsMaxPercent"] !== null) {
+    throw new Error(`商品 ${idComplete} 配置了“奖励点券最高抵扣比例”，但没有有效价格`);
   }
 }
 

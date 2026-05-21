@@ -4,6 +4,7 @@ export interface WorkshopItem {
     "name": string | null;
     "shopImage": string | null;
     "price": number | null;
+    "freeCreditsMaxPercent": number | null;
     "rarity": string | null;
     "discountRate": number | null;
     "discountPrices": number | null;
@@ -83,6 +84,7 @@ export type ExchangeConfig = {
         type: string;
         currency: string;
         amount: number;
+        freeCreditsMaxPercent?: number;
     };
     gain?: string | string[];
 }
