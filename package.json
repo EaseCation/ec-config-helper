@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@ant-design/icons": "^5.0.1",
+    "@easecation/ecapi-sdk": "3.2.8",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@notionhq/client": "^2.2.15",
     "@vitejs/plugin-react": "^4.3.4",
     "antd": "^5.5.6",
@@ -23,9 +25,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.12.1",
-    "zustand": "^4.3.9",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zustand": "^4.3.9"
   },
   "devDependencies": {
     "@types/diff": "^7.0.0",

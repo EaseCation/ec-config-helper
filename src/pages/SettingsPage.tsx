@@ -1,16 +1,18 @@
 import React, { useEffect } from 'react';
 import { Button, Form, Input, Space, Typography } from 'antd';
 import { useNotionToken } from "../hooks/useNotionToken";
+import { useEcapiSettings } from '../hooks/useEcapiSettings';
 
 const { Title, Paragraph } = Typography;
 
 const SettingsPage: React.FC = () => {
   const { token, setToken } = useNotionToken();
+  const { apiKey, baseUrl, setApiKey, setBaseUrl } = useEcapiSettings();
   const [form] = Form.useForm();
 
   useEffect(() => {
-    form.setFieldsValue({ notionToken: token });
-  }, [token, form]);
+    form.setFieldsValue({ notionToken: token, ecapiApiKey: apiKey, ecapiBaseUrl: baseUrl });
+  }, [token, apiKey, baseUrl, form]);
 
   return (
     <div className="responsive-padding">
@@ -19,9 +21,11 @@ const SettingsPage: React.FC = () => {
       </div>
       <Form
         form={form}
-        initialValues={{ notionToken: token }}
-        onFinish={({ notionToken }) => {
+        initialValues={{ notionToken: token, ecapiApiKey: apiKey, ecapiBaseUrl: baseUrl }}
+        onFinish={({ notionToken, ecapiApiKey, ecapiBaseUrl }) => {
           setToken(notionToken);
+          setApiKey(ecapiApiKey || null);
+          setBaseUrl(ecapiBaseUrl || null);
         }}
       >
         <Paragraph>
@@ -39,6 +43,27 @@ const SettingsPage: React.FC = () => {
             style={{ width: '100%', maxWidth: 500 }}
           />
         </Form.Item>
+        <Paragraph>
+          ECAPI API Key
+        </Paragraph>
+        <Form.Item
+          name={'ecapiApiKey'}
+          extra="用于概率表导出时从 ECAPI 拉取 cfgLanguage、cfgLanguageMerchandise 和 /items，减少手动导出 JSON。"
+        >
+          <Input.Password
+            placeholder="请输入 ECAPI API Key"
+            style={{ width: '100%', maxWidth: 500 }}
+          />
+        </Form.Item>
+        <Paragraph>
+          ECAPI Base URL
+        </Paragraph>
+        <Form.Item name={'ecapiBaseUrl'}>
+          <Input
+            placeholder="https://api.easecation.net"
+            style={{ width: '100%', maxWidth: 500 }}
+          />
+        </Form.Item>
         <Space>
           <Form.Item label={null}>
             <Button type="primary" htmlType="submit">
@@ -48,6 +73,8 @@ const SettingsPage: React.FC = () => {
           <Form.Item label={null}>
             <Button onClick={() => {
               setToken(null);
+              setApiKey(null);
+              setBaseUrl(null);
               window.location.href = '/';
             }}>清除</Button>
           </Form.Item>

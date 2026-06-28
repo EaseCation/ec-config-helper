@@ -233,6 +233,11 @@
     "@babel/helper-string-parser" "^7.25.9"
     "@babel/helper-validator-identifier" "^7.25.9"
 
+"@easecation/ecapi-sdk@3.2.8":
+  version "3.2.8"
+  resolved "https://registry.yarnpkg.com/@easecation/ecapi-sdk/-/ecapi-sdk-3.2.8.tgz#30c6d4c8f16e4bd6b74102bd30079a2284e85e68"
+  integrity sha512-oNXkiqV39oN3Mpo5KTzcZXoDnvSK9sIO5t0kOVfNuCBjx4FCC9YelTAb2I8o8eRB6Zoi2Lk9da+jegFPgLh39g==
+
 "@emotion/hash@^0.8.0":
   version "0.8.0"
   resolved "https://registry.npmjs.org/@emotion/hash/-/hash-0.8.0.tgz"

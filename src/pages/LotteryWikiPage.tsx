@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Collapse, Button, Typography, message, Space, Progress, Tag, Upload, Dropdown, Modal, Popconfirm, Tooltip } from 'antd';
 import type { MenuProps } from 'antd';
-import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { CopyOutlined, UploadOutlined, PlayCircleOutlined, ExportOutlined, CheckCircleOutlined, InfoCircleOutlined, CloudDownloadOutlined } from '@ant-design/icons';
 import { fetchNotionAllPages, getNotionToken } from '../notion/notionClient';
 import { flatProperty, parseCheckbox, parseRelation } from '../services/commonFormat';
 import { formatLottery, WikiResult } from '../services/lottery/lotteryService';
@@ -12,12 +12,16 @@ import { fetchLotteryBoxNameMap } from '../services/lottery/lotteryNameService';
 import { parseLanguageConfig, parseKillerMerchandise } from '../services/lottery/extraNameParser';
 import { downloadCSV, downloadCSVAsZip, downloadMarkdown } from '../utils/download';
 import { parseLocalLotteryConfig } from '../services/lottery/configParser';
+import { fetchEcapiLotteryNameSources, EcapiLotteryNameSources } from '../services/ecapi/ecapiLotterySources';
+import { getEcapiApiKey } from '../services/ecapi/ecapiSettings';
 
 const { Paragraph, Title, Text } = Typography;
 
 const splitString = (input: string): string[] => input.split(', ').filter(Boolean);
 
 const stages = ['初始化','检查 Notion Token','获取 Lottery 页面','解析 Lottery 数据','获取名称映射','构建 Wiki 数据','完成'];
+
+const hasEntries = (map: Record<string, string>) => Object.keys(map).length > 0;
 
 const renderMarkdown = (md: string) => {
   const lines = md.split(/\r?\n/);
@@ -93,6 +97,11 @@ const LotteryWikiPage: React.FC = () => {
   const [langMerchFile, setLangMerchFile] = useState<{name: string, size: number} | null>(null);
   const [killerMap, setKillerMap] = useState<Record<string, string>>({});
   const [killerFile, setKillerFile] = useState<{name: string, size: number} | null>(null);
+  const [ecapiLoading, setEcapiLoading] = useState(false);
+  const [ecapiCommodityMap, setEcapiCommodityMap] = useState<Record<string, string>>({});
+  const [ecapiLangMap, setEcapiLangMap] = useState<Record<string, string>>({});
+  const [ecapiLangMerchMap, setEcapiLangMerchMap] = useState<Record<string, string>>({});
+  const [ecapiStats, setEcapiStats] = useState<EcapiLotteryNameSources['stats'] | null>(null);
   const uploadBatchRef = useRef({ total: 0, done: 0 });
 
   const mergeNameMaps = (
@@ -122,6 +131,63 @@ const LotteryWikiPage: React.FC = () => {
     }
 
     return merged;
+  };
+
+  const buildMergedNameMap = (
+    baseNameMap: Record<string, string> = notionNameMap,
+    languageOverride?: Record<string, string>,
+    killerOverride?: Record<string, string>,
+    merchandiseOverride?: Record<string, string>,
+    ecapiCommodityOverride?: Record<string, string>,
+  ) => {
+    const baseWithEcapiCommodity = {
+      ...(ecapiCommodityOverride ?? ecapiCommodityMap),
+      ...baseNameMap,
+    };
+    const activeLanguageMap = languageOverride ?? (hasEntries(langMap) ? langMap : ecapiLangMap);
+    const activeMerchandiseMap = merchandiseOverride ?? (hasEntries(langMerchMap) ? langMerchMap : ecapiLangMerchMap);
+    return mergeNameMaps(
+      baseWithEcapiCommodity,
+      activeLanguageMap,
+      killerOverride ?? killerMap,
+      activeMerchandiseMap,
+    );
+  };
+
+  const applyEcapiSources = (sources: EcapiLotteryNameSources) => {
+    setEcapiCommodityMap(sources.commodityNameMap);
+    setEcapiLangMap(sources.languageMap);
+    setEcapiLangMerchMap(sources.languageMerchandiseMap);
+    setEcapiStats(sources.stats);
+  };
+
+  const loadEcapiSources = async (showSuccess = true): Promise<EcapiLotteryNameSources | null> => {
+    if (!getEcapiApiKey()) {
+      if (showSuccess) {
+        messageApi.error('请先在设置中填写 ECAPI API Key');
+      }
+      return null;
+    }
+
+    setEcapiLoading(true);
+    try {
+      const sources = await fetchEcapiLotteryNameSources();
+      applyEcapiSources(sources);
+      if (showSuccess) {
+        messageApi.success(
+          `ECAPI 名称配置已加载：${sources.stats.commodityItems} 个商品，${sources.stats.languageRows} 条语言，${sources.stats.languageMerchandiseRows} 条商品语言`,
+        );
+      }
+      return sources;
+    } catch (err) {
+      console.error(err);
+      if (showSuccess) {
+        messageApi.error(err instanceof Error ? err.message : 'ECAPI 名称配置加载失败');
+      }
+      return null;
+    } finally {
+      setEcapiLoading(false);
+    }
   };
 
 
@@ -195,12 +261,28 @@ const LotteryWikiPage: React.FC = () => {
       }
 
       setStageIndex(4);
-      const [nMap, bMap] = await Promise.all([
+      const [notionCommodityMap, bMap, ecapiSources] = await Promise.all([
         fetchCommodityNameMap(),
-        fetchLotteryBoxNameMap()
+        fetchLotteryBoxNameMap(),
+        getEcapiApiKey()
+          ? fetchEcapiLotteryNameSources().catch((err) => {
+              console.warn('ECAPI 名称配置加载失败，继续使用已上传/Notion 配置', err);
+              messageApi.warning('ECAPI 名称配置加载失败，将继续使用已上传/Notion 配置');
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
-      setNotionNameMap(nMap);
-      const mergedNameMap = mergeNameMaps(nMap, langMap, killerMap, langMerchMap);
+      if (ecapiSources) {
+        applyEcapiSources(ecapiSources);
+      }
+      const baseNameMap = {
+        ...(ecapiSources?.commodityNameMap ?? ecapiCommodityMap),
+        ...notionCommodityMap,
+      };
+      setNotionNameMap(baseNameMap);
+      const activeLangMap = hasEntries(langMap) ? langMap : (ecapiSources?.languageMap ?? ecapiLangMap);
+      const activeLangMerchMap = hasEntries(langMerchMap) ? langMerchMap : (ecapiSources?.languageMerchandiseMap ?? ecapiLangMerchMap);
+      const mergedNameMap = mergeNameMaps(baseNameMap, activeLangMap, killerMap, activeLangMerchMap);
       setNameMap(mergedNameMap);
       setBoxNameMap(bMap);
 
@@ -223,6 +305,23 @@ const LotteryWikiPage: React.FC = () => {
       load();
     } else {
       load();
+    }
+  };
+
+  const handleLoadEcapi = async () => {
+    const sources = await loadEcapiSources(true);
+    if (!sources) return;
+
+    const merged = buildMergedNameMap(
+      notionNameMap,
+      hasEntries(langMap) ? langMap : sources.languageMap,
+      killerMap,
+      hasEntries(langMerchMap) ? langMerchMap : sources.languageMerchandiseMap,
+      sources.commodityNameMap,
+    );
+    setNameMap(merged);
+    if (Object.keys(notionMap).length) {
+      rebuild(notionMap, uploadedMap, merged, boxNameMap);
     }
   };
 
@@ -276,7 +375,7 @@ const LotteryWikiPage: React.FC = () => {
           name: file.name,
           size: file.size
         });
-        const merged = mergeNameMaps(notionNameMap, parsed, killerMap, langMerchMap);
+        const merged = buildMergedNameMap(notionNameMap, parsed);
         setNameMap(merged);
         if (Object.keys(notionMap).length) {
           rebuild(notionMap, uploadedMap, merged, boxNameMap);
@@ -301,7 +400,7 @@ const LotteryWikiPage: React.FC = () => {
           name: file.name,
           size: file.size
         });
-        const merged = mergeNameMaps(notionNameMap, langMap, killerMap, parsed);
+        const merged = buildMergedNameMap(notionNameMap, undefined, undefined, parsed);
         setNameMap(merged);
         if (Object.keys(notionMap).length) {
           rebuild(notionMap, uploadedMap, merged, boxNameMap);
@@ -327,7 +426,7 @@ const LotteryWikiPage: React.FC = () => {
           name: file.name,
           size: file.size
         });
-        const merged = mergeNameMaps(notionNameMap, langMap, parsed, langMerchMap);
+        const merged = buildMergedNameMap(notionNameMap, undefined, parsed);
         setNameMap(merged);
         if (Object.keys(notionMap).length) {
           rebuild(notionMap, uploadedMap, merged, boxNameMap);
@@ -474,7 +573,7 @@ const LotteryWikiPage: React.FC = () => {
             <li>读取 Notion 数据库的原始配置。</li>
             <li>若上传 JSON 抽奖箱配置，则加入解析队列。</li>
             <li>存在嵌套抽奖箱，需要递归解析。</li>
-            <li>名称映射优先级：Notion → cfgLanguage → merchandise.json。</li>
+            <li>名称映射优先级：Notion → ECAPI /items → cfgLanguage → cfgLanguageMerchandise → merchandise.json。</li>
             <li>分析并重新构建后可导出表格、CSV 与 Markdown。</li>
           </ol>
           
@@ -514,6 +613,7 @@ const LotteryWikiPage: React.FC = () => {
             <Text strong>语言配置解析：</Text>
           </Paragraph>
           <ul>
+            <li>ECAPI SDK：读取 <Text code>/items</Text>、<Text code>cfgLanguage</Text>、<Text code>cfgLanguageMerchandise</Text></li>
             <li>cfgLanguage：解析 <Text code>key</Text> 和 <Text code>zh/zh_TW/en</Text> 字段</li>
             <li>cfgLanguageMerchandise：解析商品语言映射</li>
             <li>密室杀手商品：解析 <Text code>merchandise</Text> 和 <Text code>name</Text> 字段</li>
@@ -525,6 +625,7 @@ const LotteryWikiPage: React.FC = () => {
           </Paragraph>
           <ol>
             <li>Notion 商品名称数据库（排除 music 类型商品）</li>
+            <li>ECAPI /items 商品名称</li>
             <li>cfgLanguage 语言配置</li>
             <li>cfgLanguageMerchandise 商品语言配置</li>
             <li>密室杀手商品配置</li>
@@ -561,7 +662,10 @@ const LotteryWikiPage: React.FC = () => {
               <Text strong>JSON 抽奖箱配置</Text>：<Text code>CodeFunCore/CodeFunCore/src/main/resources/net/easecation/codefuncore/lottery/exchange</Text> 目录中的 JSON 文件。
             </li>
             <li>
-              <Text strong>语言库配置</Text>：<Text code>cfgLanguage</Text> 数据库导出的 JSON 文件。
+              <Text strong>ECAPI 名称配置</Text>：输入 ECAPI API Key 后，通过 SDK 读取 <Text code>/items</Text>、<Text code>cfgLanguage</Text> 和 <Text code>cfgLanguageMerchandise</Text>。
+            </li>
+            <li>
+              <Text strong>语言库配置</Text>：手动上传 <Text code>cfgLanguage</Text> 数据库导出的 JSON 文件仍可覆盖 ECAPI 自动结果。
             </li>
             <li>
               <Text strong>商品语言库配置</Text>：<Text code>cfgLanguageMerchandise</Text> 数据库导出的 JSON 文件。
@@ -594,7 +698,18 @@ const LotteryWikiPage: React.FC = () => {
              </Upload>
            </Tooltip>
 
-           <Tooltip title="cfgLanguage 数据库导出的 JSON 文件">
+	           <Tooltip title="从 ECAPI 读取 /items、cfgLanguage 和 cfgLanguageMerchandise。需要先在设置中填写 ECAPI API Key">
+	             <Button
+	               icon={<CloudDownloadOutlined />}
+	               onClick={handleLoadEcapi}
+	               loading={ecapiLoading}
+	               disabled={loading}
+	             >
+	               从 ECAPI 加载名称配置
+	             </Button>
+	           </Tooltip>
+
+	           <Tooltip title="cfgLanguage 数据库导出的 JSON 文件；如果已从 ECAPI 加载，可不上传">
              <Upload beforeUpload={handleLangUpload} showUploadList={false} accept=".json" disabled={loading}>
                <Button
                  icon={langFile ? <CheckCircleOutlined /> : <UploadOutlined />}
@@ -606,7 +721,7 @@ const LotteryWikiPage: React.FC = () => {
              </Upload>
            </Tooltip>
 
-           <Tooltip title="cfgLanguageMerchandise 数据库导出的 JSON 文件">
+	           <Tooltip title="cfgLanguageMerchandise 数据库导出的 JSON 文件；如果已从 ECAPI 加载，可不上传">
              <Upload beforeUpload={handleLangMerchUpload} showUploadList={false} accept=".json" disabled={loading}>
                <Button
                  icon={langMerchFile ? <CheckCircleOutlined /> : <UploadOutlined />}
@@ -630,7 +745,7 @@ const LotteryWikiPage: React.FC = () => {
              </Upload>
            </Tooltip>
 
-           {!langFile || !langMerchFile || !killerFile ? (
+	           {!getEcapiApiKey() && (!langFile || !langMerchFile || !killerFile) ? (
              <Popconfirm
                title="缺少翻译配置"
                description="缺少翻译配置可能会导致部分名称未翻译，确定继续吗？"
@@ -652,7 +767,15 @@ const LotteryWikiPage: React.FC = () => {
            <Dropdown menu={{ items: exportAllItems, onClick: handleExportAll }} disabled={loading}>
              <Button icon={<ExportOutlined />} disabled={loading}>导出</Button>
            </Dropdown>
-         </Space>
+	         </Space>
+	         {ecapiStats && (
+	           <div style={{ fontSize: '12px', color: '#1677ff' }}>
+	             已加载 ECAPI 名称配置：
+	             /items {ecapiStats.commodityItems} 个商品，
+	             cfgLanguage {ecapiStats.languageRows} 条，
+	             cfgLanguageMerchandise {ecapiStats.languageMerchandiseRows} 条。
+	           </div>
+	         )}
          {uploadedFiles.length > 0 && (
            <div style={{ fontSize: '12px', color: '#666' }}>
              已上传的抽奖箱配置文件：
@@ -683,4 +806,3 @@ const LotteryWikiPage: React.FC = () => {
 };
 
 export default LotteryWikiPage;
-
